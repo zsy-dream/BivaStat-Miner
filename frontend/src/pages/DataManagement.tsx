@@ -190,6 +190,7 @@ const DataManagement: React.FC = () => {
                         立即导入
                         <input type="file" className="hidden" onChange={handleUpload} />
                     </label>
+                    {file && <p className="mt-2 text-sm text-slate-600">Selected: {file.name}</p>}
                 </div>
             )}
         </div>
