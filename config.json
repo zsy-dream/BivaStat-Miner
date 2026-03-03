@@ -1,0 +1,45 @@
+{
+    "algorithm": {
+        "min_support": 0.05,
+        "min_confidence": 0.4,
+        "min_lift": 1,
+        "max_len": 5,
+        "p_value_threshold": 0.05,
+        "confidence_interval": 0.95,
+        "test_method": "auto",
+        "heuristic_factor": 1.5
+    },
+    "preprocessing": {
+        "missing_value_strategy": "median",
+        "outlier_detection": true,
+        "outlier_method": "iqr",
+        "outlier_threshold": 1.5,
+        "standardization": false,
+        "encoding_method": "onehot"
+    },
+    "security": {
+        "max_file_size_mb": 100,
+        "allowed_extensions": ["csv", "xlsx", "xls", "json"],
+        "enable_content_scan": true,
+        "max_cache_entries": 10,
+        "max_memory_mb": 512
+    },
+    "system": {
+        "cache_enabled": true,
+        "cache_ttl_seconds": 3600,
+        "log_level": "INFO",
+        "enable_debug": false
+    },
+    "visualization": {
+        "chart_theme": "plotly",
+        "color_palette": "viridis",
+        "figure_size": [10, 8],
+        "dpi": 300,
+        "interactive": true
+    },
+    "export": {
+        "default_format": "csv",
+        "include_metadata": true,
+        "compression": false
+    }
+}

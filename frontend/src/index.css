@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#fbfbfa] text-[#37352f] antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  .notion-card {
+    @apply bg-white border border-[#e9e9e8] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)];
+  }
+
+  .notion-btn-primary {
+    @apply bg-[#2383e2] hover:bg-[#0070d2] text-white px-4 py-2 rounded font-medium transition-colors duration-200;
+  }
+
+  .notion-btn-ghost {
+    @apply hover:bg-[#efefee] text-[#37352f] px-3 py-1.5 rounded transition-colors duration-200;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer transition-colors duration-150 text-[#37352f] hover:bg-[#efefee];
+  }
+
+  .sidebar-item-active {
+    @apply bg-[#efefee] font-semibold;
+  }
+}

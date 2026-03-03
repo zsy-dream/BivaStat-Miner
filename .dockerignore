@@ -1,0 +1,14 @@
+frontend/
+scripts_archive/
+node_modules/
+__pycache__/
+*.pyc
+.env
+.git
+.gitignore
+uploads/*
+logs/*
+venv/
+.gemini/
+*.img
+*.md

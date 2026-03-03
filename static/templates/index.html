@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于启发式算法的双变量关联挖掘与非参数统计分析平台 V1.0</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="/static/js/main.js"></script>
+</head>
+<body>
+
+    <!-- 顶部全局菜单栏 -->
+    <header class="app-header">
+        <div class="header-brand">
+            <span style="color: #3b82f6; font-size: 24px;">📊</span>
+            <span>基于启发式算法的双变量关联挖掘与非参数统计分析平台 V1.0</span>
+        </div>
+        <div class="header-actions">
+            <span class="icon-btn" title="帮助文档">❓</span>
+            <span class="icon-btn" title="用户账户">👤</span>
+            <span class="icon-btn" title="退出系统">🚪</span>
+        </div>
+    </header>
+
+    <!-- 左侧功能导航树 -->
+    <aside class="app-sidebar">
+        <div class="sidebar-title">功能导航</div>
+        <nav class="nav-menu">
+            <a href="/" class="nav-item active">
+                <span class="nav-icon">🏠</span> 首页
+            </a>
+            <a href="/data" class="nav-item">
+                <span class="nav-icon">📂</span> 数据管理
+            </a>
+            <a href="/algorithm" class="nav-item">
+                <span class="nav-icon">⚙️</span> 算法配置
+            </a>
+            <a href="javascript:void(0)" onclick="goToLatestAnalysis()" class="nav-item">
+                <span class="nav-icon">📈</span> 结果分析
+            </a>
+        </nav>
+    </aside>
+
+    <!-- 右侧主要工作区域 -->
+    <main class="app-main">
+        
+        <!-- 欢迎卡片 -->
+        <div class="welcome-card">
+            <h1 class="welcome-title">欢迎使用数据分析平台</h1>
+            <p class="welcome-text">
+                本平台基于启发式算法实现双变量关联挖掘，支持非参数统计分析，为您提供专业的数据洞察服务。
+                平台主要功能包括数据导入与预处理、算法参数配置（如P值调整、置信区间设置）、关联规则生成、统计结果可视化及报告生成。
+                适用于金融风控、市场趋势分析、医疗研究等多个领域。
+            </p>
+        </div>
+
+        <!-- 功能模块卡片 -->
+        <div class="modules-grid">
+            <div class="feature-card" onclick="window.location.href='/data'">
+                <div class="feature-icon bg-blue-light">📂</div>
+                <div class="feature-content">
+                    <h3>数据管理</h3>
+                    <p>支持多种数据源导入，提供数据预览、清洗和预处理功能，确保分析结果的准确性和可靠性。</p>
+                </div>
+            </div>
+
+            <div class="feature-card" onclick="window.location.href='/algorithm'">
+                <div class="feature-icon bg-purple-light">⚙️</div>
+                <div class="feature-content">
+                    <h3>算法配置</h3>
+                    <p>配置启发式算法参数，调整P值和置信区间，优化关联规则挖掘，满足不同层次用户的需求。</p>
+                </div>
+            </div>
+
+            <div class="feature-card" onclick="goToLatestAnalysis()">
+                <div class="feature-icon bg-green-light">📈</div>
+                <div class="feature-content">
+                    <h3>结果分析</h3>
+                    <p>查看关联规则同步非参数统计结果，支持热力图、散点图等多种可视化图表展示，提供精准决策支持。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="quick-actions-section">
+            <h3 class="section-header">快速操作</h3>
+            <div class="action-buttons">
+                <button class="action-btn btn-blue" onclick="document.getElementById('fileInput').click()">
+                    <span>☁️ 上传数据</span>
+                </button>
+                <input type="file" id="fileInput" style="display: none;" onchange="handleUpload(this)">
+
+                <button class="action-btn btn-orange" onclick="showSampleDataModal()">
+                    <span>📊 示例数据</span>
+                </button>
+
+                <button class="action-btn btn-green" onclick="runAnalysis()">
+                    <span>▶️ 运行分析</span>
+                </button>
+
+                <button class="action-btn btn-purple" onclick="window.location.href='/algorithm'">
+                    <span>⚙️ 算法设置</span>
+                </button>
+            </div>
+        </div>
+
+       
+        <div class="quick-actions-section">
+            <h3 class="section-header">示例分析结果</h3>
+            <div class="example-grid">
+                <div class="example-chart-placeholder" style="padding: 18px 18px;">
+                    <div style="font-weight: 600; margin-bottom: 10px; color:#111827;">相关性热力图</div>
+                    <div id="home-heatmap" style="height: 240px;"></div>
+                </div>
+                <div class="example-chart-placeholder" style="padding: 18px 18px;">
+                    <div style="font-weight: 600; margin-bottom: 10px; color:#111827;">统计指标对比</div>
+                    <div id="home-bar" style="height: 240px;"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="/static/js/enhanced-main.js"></script>
+    <script>
+        // 已有的脚本代码...
+        function _renderHomeSamplesFromRules(rules) {
+            // 将规则转换为真正的“前项 × 后项”提升度热力图
+            const slice = rules.slice(0, 80);
+            const antecedents = [];
+            const consequents = [];
+
+            slice.forEach(r => {
+                const a = Array.isArray(r.antecedent) ? r.antecedent.join('、') : (r.antecedent || '');
+                const c = Array.isArray(r.consequent) ? r.consequent.join('、') : (r.consequent || '');
+                if (a && !antecedents.includes(a)) antecedents.push(a);
+                if (c && !consequents.includes(c)) consequents.push(c);
+            });
+
+            // 构建二维矩阵，单元格为该前项→后项的最大提升度
+            const z = consequents.map(() => antecedents.map(() => null));
+            slice.forEach(r => {
+                const a = Array.isArray(r.antecedent) ? r.antecedent.join('、') : (r.antecedent || '');
+                const c = Array.isArray(r.consequent) ? r.consequent.join('、') : (r.consequent || '');
+                const lift = r.lift || 0;
+                const yi = consequents.indexOf(c);
+                const xi = antecedents.indexOf(a);
+                if (yi >= 0 && xi >= 0) {
+                    z[yi][xi] = Math.max(z[yi][xi] ?? 0, lift);
+                }
+            });
+
+            Plotly.newPlot('home-heatmap', [{
+                x: antecedents,
+                y: consequents,
+                z,
+                type: 'heatmap',
+                colorscale: 'YlOrRd',
+                reversescale: false,
+                showscale: true,
+                colorbar: {
+                    thickness: 10,
+                    title: '提升度'
+                },
+                hovertemplate: '前项:%{x}<br>后项:%{y}<br>提升度:%{z:.3f}<extra></extra>'
+            }], {
+                margin: {t: 10, b: 40, l: 80, r: 10},
+                paper_bgcolor: '#ffffff',
+                plot_bgcolor: '#ffffff',
+                xaxis: { automargin: true, tickangle: -45, title: '前项' },
+                yaxis: { automargin: true, title: '后项' }
+            }, {responsive: true, displaylogo: false});
+
+            const avgSupp = rules.reduce((a, r) => a + (r.support || 0), 0) / Math.max(1, rules.length);
+            const avgConf = rules.reduce((a, r) => a + (r.confidence || 0), 0) / Math.max(1, rules.length);
+            const avgLift = rules.reduce((a, r) => a + (r.lift || 0), 0) / Math.max(1, rules.length);
+            const total = rules.length;
+
+            Plotly.newPlot('home-bar', [{
+                x: ['平均支持度', '平均置信度', '平均提升度', '规则数量'],
+                // 为了避免“规则数量”量纲过大导致其他柱子看不见，对其取对数刻度
+                y: [avgSupp, avgConf, avgLift, Math.log10(Math.max(1, total))],
+                type: 'bar',
+                marker: { color: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1'] }
+            }], {
+                margin: {t: 10, b: 60, l: 50, r: 10},
+                paper_bgcolor: '#ffffff',
+                plot_bgcolor: '#ffffff',
+                yaxis: {
+                    title: '指标值（规则数量为 log₁₀ 标尺）'
+                }
+            }, {responsive: true, displaylogo: false});
+        }
+
+        function _renderHomeSamplesFallback() {
+            // 没有分析结果时，画一组更直观的固定示例
+            const z = [
+                [0.10, 0.22, 0.38, 0.55, 0.71],
+                [0.18, 0.30, 0.46, 0.63, 0.80],
+                [0.26, 0.37, 0.52, 0.69, 0.87],
+                [0.20, 0.29, 0.41, 0.58, 0.74],
+            ];
+            const dims = ['变量 A', '变量 B', '变量 C', '变量 D', '变量 E'];
+            Plotly.newPlot('home-heatmap', [{
+                x: dims,
+                y: ['维度 1', '维度 2', '维度 3', '维度 4'],
+                z,
+                type: 'heatmap',
+                colorscale: 'YlGnBu',
+                showscale: true,
+                colorbar: {
+                    thickness: 10,
+                    title: '相关性'
+                },
+                hovertemplate: '变量:%{x}<br>维度:%{y}<br>相关性:%{z:.2f}<extra></extra>'
+            }], {
+                margin: {t: 10, b: 40, l: 60, r: 10},
+                xaxis: { title: '变量', automargin: true },
+                yaxis: { title: '维度', automargin: true }
+            }, {responsive: true, displaylogo: false});
+
+            Plotly.newPlot('home-bar', [{
+                x: ['支持度', '置信度', '提升度', 'Conviction'],
+                y: [0.62, 0.88, 1.35, 1.12],
+                type: 'bar',
+                marker: { color: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1'] }
+            }], {
+                margin: {t: 10, b: 60, l: 50, r: 10},
+                yaxis: { title: '指标值' }
+            }, {responsive: true, displaylogo: false});
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/api/analysis/get_results')
+                .then(r => r.json())
+                .then(res => {
+                    const rules = res && res.data && res.data.rules ? res.data.rules : [];
+                    if (res.success && rules.length > 0) _renderHomeSamplesFromRules(rules);
+                    else _renderHomeSamplesFallback();
+                })
+                .catch(() => _renderHomeSamplesFallback());
+        });
+
+        function handleUpload(input) {
+            if (!input.files[0]) return;
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            
+            // 简单的原生 Toast 提示
+            const showToast = (msg) => {
+                const div = document.createElement('div');
+                div.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 24px; border-radius: 4px; z-index: 1000;";
+                div.innerText = msg;
+                document.body.appendChild(div);
+                setTimeout(() => div.remove(), 3000);
+            };
+
+            showToast("正在上传...");
+
+            fetch('/api/data/upload_data', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    if(res && res.success) {
+                        showToast('✅ 上传成功！正在跳转数据管理...');
+                        // 首页上传后直接跳转到数据管理页，让用户看到已同步的数据预览/质量报告
+                        setTimeout(() => window.location.href = '/data', 600);
+                    }
+                    else showToast('❌ ' + ((res && (res.error || res.message)) ? (res.error || res.message) : '上传失败'));
+                })
+                .catch(err => showToast('❌ 上传出错: ' + err));
+        }
+
+        function runAnalysis() {
+            if(!confirm("确认开始运行分析算法？")) return;
+
+            // 首页与算法配置页保持一致：走异步任务 + 监控闭环
+            fetch('/api/algorithm/start_task', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ params: {} })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    window.location.href = `/monitor?task_id=${encodeURIComponent(res.task_id)}`;
+                } else {
+                    alert('❌ 启动失败: ' + res.error);
+                }
+            })
+            .catch(err => alert('❌ 请求错误: ' + err));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据管理 - 启发式双变量关联挖掘平台</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <!-- 引入 Chart.js 用于简单的数据分布预览（可选） -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/main.js"></script>
+    <style>
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 60px 40px;
+            text-align: center;
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: #eff6ff;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--text-secondary);
+        }
+        
+        .data-panel {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 25px;
+            overflow: hidden;
+            display: none; /* 默认隐藏，上传后显示 */
+        }
+        .panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .stat-item {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .cleaning-options {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+        .option-group {
+            margin-bottom: 15px;
+        }
+        .option-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .form-select, .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 20px;
+            background: #f8fafc;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* 质量评估面板（仿你截图右侧布局） */
+        .quality-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        .quality-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            display: none;
+        }
+        .quality-body {
+            padding: 20px;
+        }
+        .mini-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .mini-stat {
+            background: #f8fafc;
+            border: 1px solid #eef2f7;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .mini-stat .v {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .mini-stat .k {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .warn-box {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="header-brand">
+            <span style="color: #3b82f6; font-size: 24px;">📊</span>
+            <span>基于启发式算法的双变量关联挖掘与非参数统计分析平台 V1.0</span>
+        </div>
+        <div class="header-actions">
+            <span class="icon-btn" title="帮助文档">❓</span>
+            <span class="icon-btn" title="用户账户">👤</span>
+            <span class="icon-btn" title="退出系统">🚪</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+        <div class="sidebar-title">功能导航</div>
+        <nav class="nav-menu">
+            <a href="/" class="nav-item">
+                <span class="nav-icon">🏠</span> 首页
+            </a>
+            <a href="/data" class="nav-item active">
+                <span class="nav-icon">📂</span> 数据管理
+            </a>
+            <a href="/algorithm" class="nav-item">
+                <span class="nav-icon">⚙️</span> 算法配置
+            </a>
+            <a href="javascript:void(0)" onclick="goToLatestAnalysis()" class="nav-item">
+                <span class="nav-icon">📈</span> 结果分析
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="app-main">
+        <div class="content-header">
+            <div>
+                <h1 class="page-title">数据管理中心</h1>
+                <p class="page-desc">支持多格式数据导入、质量检测、缺失值处理及异常值清洗，为后续分析提供高质量数据基础。</p>
+            </div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <button class="btn btn-outline" onclick="exportCurrentData()">
+                    导出当前数据
+                </button>
+                <select id="export-format" class="form-select" style="width:120px;">
+                    <option value="csv">CSV</option>
+                    <option value="excel">Excel</option>
+                </select>
+                <button class="btn btn-primary" onclick="triggerUpload()">
+                    <span style="margin-right: 5px;">📤</span> 导入新数据
+                </button>
+            </div>
+            <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(this)">
+        </div>
+
+        <!-- 1. Upload Zone (Initial State) -->
+        <div id="upload-zone" class="upload-zone" onclick="triggerUpload()" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+            <div class="upload-icon">📂</div>
+            <h3 style="margin-bottom: 10px; color: var(--text-primary);">点击或拖拽文件到此处上传</h3>
+            <p style="color: var(--text-secondary);">支持 Excel (.xlsx, .xls), CSV (.csv) 等格式</p>
+        </div>
+
+        <!-- 2. Data Overview (Shown after upload) -->
+        <div id="data-overview" class="data-panel">
+            <div class="panel-header">
+                <div class="panel-title">📊 数据概览</div>
+                <div class="badge badge-success" id="file-name-badge">未加载</div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="row-count">-</div>
+                    <div class="stat-label">总行数 (Rows)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="col-count">-</div>
+                    <div class="stat-label">总列数 (Columns)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="missing-count" style="color: #f59e0b;">-</div>
+                    <div class="stat-label">缺失值总数 (Missing)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="memory-usage">-</div>
+                    <div class="stat-label">内存占用 (Est.)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Data Preview Table -->
+        <div id="data-preview" class="data-panel">
+            <div class="panel-header">
+                <div class="panel-title">👀 数据预览 (前 10 行)</div>
+            </div>
+            <div class="table-container">
+                <table id="preview-table">
+                    <thead>
+                        <!-- Dynamic Headers -->
+                    </thead>
+                    <tbody>
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3.5 Data Quality (Right panel style) -->
+        <div id="data-quality" class="quality-card">
+            <div class="panel-header">
+                <div class="panel-title">✅ 数据质量评估</div>
+                <div class="badge badge-success">自动检测</div>
+            </div>
+            <div class="quality-body">
+                <div class="quality-grid">
+                    <div>
+                        <div class="mini-stats">
+                            <div class="mini-stat">
+                                <div class="v" id="q-rows">-</div>
+                                <div class="k">记录数</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="v" id="q-cols">-</div>
+                                <div class="k">字段数</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="v" id="q-missing-rate" style="color:#f59e0b;">-</div>
+                                <div class="k">缺失比例</div>
+                            </div>
+                        </div>
+                        <div style="font-weight:600; margin: 8px 0 10px;">缺失值分布（Top 12）</div>
+                        <canvas id="missingChart" height="140"></canvas>
+                    </div>
+                    <div>
+                        <div style="font-weight:600; margin-bottom: 8px;">检查结果</div>
+                        <div id="q-warn" class="warn-box" style="display:none;"></div>
+                        <div id="q-ok" style="display:none; color:#059669; font-weight:600; margin-top: 10px;">
+                            ✅ 未发现明显质量问题
+                        </div>
+                        <div style="margin-top: 12px; font-size: 12px; color:#6b7280;">
+                            提示：可在下方“数据清洗与预处理”中选择策略并重新生成清洗数据。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Data Cleaning Config -->
+        <div id="data-cleaning" class="data-panel">
+            <div class="panel-header">
+                <div class="panel-title">🧹 数据清洗与预处理</div>
+            </div>
+            <div class="cleaning-options">
+                <!-- Missing Values -->
+                <div class="card" style="border: 1px solid #eee; padding: 15px;">
+                    <h4 style="margin-bottom: 15px;">缺失值处理</h4>
+                    <div class="option-group">
+                        <label class="option-label">处理策略</label>
+                        <select class="form-select" id="missing-strategy">
+                            <option value="none">不处理</option>
+                            <option value="drop">删除含有缺失值的行</option>
+                            <option value="mean">填充平均值 (数值型)</option>
+                            <option value="median">填充中位数 (数值型)</option>
+                            <option value="mode">填充众数 (分类型)</option>
+                            <option value="zero">填充 0</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Outliers -->
+                <div class="card" style="border: 1px solid #eee; padding: 15px;">
+                    <h4 style="margin-bottom: 15px;">异常值检测</h4>
+                    <div class="option-group">
+                        <label class="option-label">检测方法</label>
+                        <select class="form-select" id="outlier-method">
+                            <option value="none">不检测</option>
+                            <option value="zscore">Z-Score (标准分数法)</option>
+                            <option value="iqr" selected>IQR (四分位距法)</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label">阈值设置</label>
+                        <input type="number" class="form-input" id="outlier-threshold" value="1.5" step="0.1">
+                        <p style="font-size: 12px; color: #999; margin-top: 5px;">Z-Score 建议 3.0，IQR 建议 1.5</p>
+                    </div>
+                </div>
+
+                <!-- Standardization & Transform -->
+                <div class="card" style="border: 1px solid #eee; padding: 15px;">
+                    <h4 style="margin-bottom: 15px;">标准化与变量变换</h4>
+                    <div class="option-group">
+                        <label class="option-label">标准化方法</label>
+                        <select class="form-select" id="normalize-method">
+                            <option value="none">不标准化</option>
+                            <option value="standard">Z-Score 标准化</option>
+                            <option value="minmax">Min-Max 归一化</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label class="option-label">变量变换</label>
+                        <select class="form-select" id="transform-method">
+                            <option value="none">不变换</option>
+                            <option value="log">对数变换 (log1p)</option>
+                            <option value="boxcox">Box-Cox 变换</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-outline" onclick="resetCleaning()">重置选项</button>
+                <button class="btn btn-primary" onclick="executeCleaning()">执行清洗并保存</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentFilePath = '';
+
+        // 如果首页已经上传过数据，这里自动同步显示
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/api/data/current')
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) return;
+                    const d = res.data;
+                    currentFilePath = d.path;
+                    // 复用现有渲染逻辑
+                    renderDataOverview({
+                        filename: d.filename,
+                        shape: d.shape,
+                        columns: d.columns,
+                        preview: d.preview,
+                        path: d.path
+                    });
+                    // 展示面板
+                    document.getElementById('upload-zone').style.display = 'none';
+                    document.getElementById('data-overview').style.display = 'block';
+                    document.getElementById('data-preview').style.display = 'block';
+                    document.getElementById('data-quality').style.display = 'block';
+                    document.getElementById('data-cleaning').style.display = 'block';
+                })
+                .catch(() => {});
+        });
+
+        // File Upload Handling
+        function triggerUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                uploadFile(input.files[0]);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                uploadFile(e.dataTransfer.files[0]);
+            }
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show loading
+            const zone = document.getElementById('upload-zone');
+            const originalText = zone.innerHTML;
+            zone.innerHTML = '<div class="upload-icon">⏳</div><h3>正在上传并解析数据...</h3>';
+
+            fetch('/api/data/upload_data', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res && res.success) {
+                    const data = res.data || {};
+                    currentFilePath = data.path || ''; // Store for cleaning
+                    renderDataOverview(data);
+                    
+                    // Hide upload zone (or make it smaller) and show panels
+                    zone.style.display = 'none';
+                    document.getElementById('data-overview').style.display = 'block';
+                    document.getElementById('data-preview').style.display = 'block';
+                    document.getElementById('data-cleaning').style.display = 'block';
+                    
+                    // Show success toast/alert (simple alert for now)
+                    // alert('数据上传成功！');
+                } else {
+                    const msg = (res && (res.error || res.message)) ? (res.error || res.message) : '未知错误';
+                    alert('上传失败: ' + msg);
+                    zone.innerHTML = originalText;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('上传出错');
+                zone.innerHTML = originalText;
+            });
+        }
+
+        function renderDataOverview(data) {
+            document.getElementById('file-name-badge').textContent = data.filename;
+            document.getElementById('row-count').textContent = data.shape[0];
+            document.getElementById('col-count').textContent = data.shape[1];
+            
+            // Calculate missing from preview if not provided directly, 
+            // but backend returns columns info in preview usually. 
+            // Let's use preview_data endpoint to get detailed stats if needed.
+            // For now, use the preview data to populate table.
+            
+            // Render Table
+            const table = document.getElementById('preview-table');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            // Clear existing
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            
+            if (data.columns && data.preview) {
+                // Headers
+                const trHead = document.createElement('tr');
+                trHead.innerHTML = `<th>#</th>` + data.columns.map(col => `<th>${col}</th>`).join('');
+                thead.appendChild(trHead);
+                
+                // Rows
+                data.preview.forEach((row, index) => {
+                    const tr = document.createElement('tr');
+                    let rowHtml = `<td>${index + 1}</td>`;
+                    data.columns.forEach(col => {
+                        rowHtml += `<td>${row[col] !== null ? row[col] : '<span style="color:#ccc">NaN</span>'}</td>`;
+                    });
+                    tr.innerHTML = rowHtml;
+                    tbody.appendChild(tr);
+                });
+            }
+            
+            // Fetch detailed column info for "Missing Values" stat
+            fetch('/api/data/preview_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({file_path: data.path})
+            })
+            .then(r => r.json())
+            .then(res => {
+                if(res.success) {
+                    let totalMissing = 0;
+                    res.columns_info.forEach(c => totalMissing += c.missing);
+                    document.getElementById('missing-count').textContent = totalMissing;
+                    document.getElementById('memory-usage').textContent = "~" + (data.shape[0] * data.shape[1] * 8 / 1024).toFixed(1) + " KB";
+                }
+            });
+
+            // 质量评估（缺失分布图 + 告警）
+            fetch('/api/data/quality_report', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ file_path: data.path })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) return;
+                document.getElementById('data-quality').style.display = 'block';
+                document.getElementById('q-rows').textContent = res.summary.rows;
+                document.getElementById('q-cols').textContent = res.summary.cols;
+                // 缺失率很小时（例如 0.02%）用 1 位小数会显示成 0.0%，造成“看起来不匹配”
+                const missingPct = (Number(res.summary.missing_rate || 0) * 100);
+                document.getElementById('q-missing-rate').textContent = missingPct.toFixed(2) + '%';
+
+                const warnDiv = document.getElementById('q-warn');
+                const okDiv = document.getElementById('q-ok');
+                const warnings = (res.summary.warnings || []).concat(res.summary.errors || []);
+                if (warnings.length > 0) {
+                    warnDiv.style.display = 'block';
+                    okDiv.style.display = 'none';
+                    warnDiv.innerHTML = warnings.map(w => `- ${w}`).join('<br>');
+                } else {
+                    warnDiv.style.display = 'none';
+                    okDiv.style.display = 'block';
+                }
+
+                renderMissingChart(res.missing_chart.labels || [], res.missing_chart.values || []);
+            })
+            .catch(() => {});
+        }
+
+        let missingChartInstance = null;
+        function renderMissingChart(labels, values) {
+            const ctx = document.getElementById('missingChart');
+            if (!ctx) return;
+            if (missingChartInstance) {
+                missingChartInstance.destroy();
+                missingChartInstance = null;
+            }
+            missingChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '缺失值数量',
+                        data: values,
+                        backgroundColor: 'rgba(59, 130, 246, 0.55)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#6b7280' }, grid: { display: false } },
+                        y: { ticks: { color: '#6b7280' }, grid: { color: '#eef2f7' } }
+                    }
+                }
+            });
+        }
+
+        function executeCleaning() {
+            if (!currentFilePath) return alert('请先上传数据');
+
+            const options = {
+                missing_strategy: document.getElementById('missing-strategy').value,
+                outlier_method: document.getElementById('outlier-method').value,
+                outlier_threshold: parseFloat(document.getElementById('outlier-threshold').value),
+                normalize_method: document.getElementById('normalize-method').value,
+                transform_method: document.getElementById('transform-method').value
+            };
+
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '处理中...';
+            btn.disabled = true;
+
+            fetch('/api/data/preprocess_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    file_path: currentFilePath,
+                    options: options
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                if (res.success) {
+                    alert('数据清洗完成！');
+                    // Update current file path to cleaned one
+                    currentFilePath = res.cleaned_path;
+                    // Refresh View
+                    renderDataOverview({
+                        filename: 'Cleaned_Data', // Or keep original name + cleaned
+                        shape: res.shape_after,
+                        columns: Object.keys(res.preview[0] || {}),
+                        preview: res.preview,
+                        path: res.cleaned_path
+                    });
+                } else {
+                    alert('清洗失败: ' + res.error);
+                }
+            })
+            .catch(err => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('请求出错');
+            });
+        }
+
+        function resetCleaning() {
+            document.getElementById('missing-strategy').value = 'none';
+            document.getElementById('outlier-method').value = 'none';
+            document.getElementById('normalize-method').value = 'none';
+            document.getElementById('transform-method').value = 'none';
+        }
+
+        // 一键导出当前（可能已清洗后的）数据集
+        function exportCurrentData() {
+            if (!currentFilePath) {
+                alert('暂无可导出的数据，请先上传或完成清洗。');
+                return;
+            }
+            const fmt = document.getElementById('export-format').value || 'csv';
+            // 直接跳转下载链接，由后端根据 global_state/data_model 决定导出的是“最新版本”
+            window.location.href = `/api/data/export_current?format=${encodeURIComponent(fmt)}`;
+        }
+    </script>
+</body>
+</html>

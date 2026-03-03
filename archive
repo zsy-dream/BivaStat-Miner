@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+调试上传问题的脚本
+"""
+
+import requests
+import time
+import json
+
+def test_upload(file_path):
+    """测试上传接口"""
+    url = "http://127.0.0.1:5000/api/data/upload_data"
+    
+    print(f"🔄 正在测试上传: {file_path}")
+    
+    try:
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
+            
+            start_time = time.time()
+            print("📤 发送请求...")
+            
+            response = requests.post(url, files=files, timeout=30)
+            
+            end_time = time.time()
+            print(f"⏱️ 请求耗时: {end_time - start_time:.2f}秒")
+            print(f"📊 状态码: {response.status_code}")
+            
+            try:
+                result = response.json()
+                print("📋 响应内容:")
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            except:
+                print("📄 原始响应:")
+                print(response.text)
+                
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时（30秒）- 后端可能卡死")
+    except requests.exceptions.ConnectionError:
+        print("❌ 连接失败 - 请确保Flask应用正在运行")
+    except Exception as e:
+        print(f"❌ 其他错误: {e}")
+
+if __name__ == "__main__":
+    import sys
+    
+    if len(sys.argv) != 2:
+        print("用法: python debug_upload.py <文件路径>")
+        print("示例: python debug_upload.py test.csv")
+        sys.exit(1)
+    
+    file_path = sys.argv[1]
+    test_upload(file_path)
