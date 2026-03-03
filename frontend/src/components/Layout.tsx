@@ -23,21 +23,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return (
         <div className="flex h-screen bg-[#fbfbfa]">
             {/* Sidebar */}
-            <aside className="w-[240px] border-r border-[#e9e9e8] flex flex-col pt-4">
-                <div className="px-5 mb-8 flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center text-white font-bold">
+            <aside className="w-68 flex flex-col border-r border-[#e9e9e8] bg-[#fbfbfa] h-full transition-all duration-300">
+                <div className="p-6 flex items-center gap-3">
+                    <div className="w-9 h-9 bg-emerald-500 rounded-md flex items-center justify-center text-white font-bold text-xl shadow-sm">
                         B
                     </div>
-                    <span className="font-bold text-sm text-[#37352f] truncate">
-                        双变量挖掘平台 V1.0
-                    </span>
+                    <div>
+                        <h1 className="text-sm font-bold tracking-tight text-[#37352f]">双变量挖掘平台</h1>
+                        <p className="text-[10px] text-emerald-600 font-bold opacity-80 uppercase tracking-tighter">Edition V1.0</p>
+                    </div>
                 </div>
 
-                <nav className="flex-1 px-3 space-y-1">
-                    <div className="text-[11px] font-semibold text-[#8e8e8e] px-3 mb-2 uppercase tracking-wider">
-                        主菜单
-                    </div>
-                    {menuItems.map((item) => (
+                <nav className="flex-1 px-3 py-4 space-y-1.5 flex flex-col">
+                    <div className="px-3 mb-3">
+                        <span className="text-[11px] font-bold text-[#8e8e8e] uppercase tracking-widest opacity-60">
+                            主菜单 (Menu)
+                        </span>
+                    </div>{menuItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
@@ -49,16 +51,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             }
                         >
                             <item.icon size={18} strokeWidth={2.5} />
-                            <span>{item.label}</span>
+                            <span className="text-sm font-semibold">{item.label}</span>
                         </NavLink>
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-[#e9e9e8]">
-                    <div className="sidebar-item">
-                        <HelpCircle size={18} />
-                        <span className="text-[14px]">帮助文档</span>
-                    </div>
+                <div className="p-4 mt-auto border-t border-[#e9e9e8]/50">
+                    <button className="flex items-center gap-3 px-3 py-2 w-full text-[#37352f]/70 hover:bg-[#efefee] rounded-md transition-all group">
+                        <HelpCircle size={18} className="group-hover:text-emerald-500 transition-colors" />
+                        <span className="text-sm font-medium">解析帮助文档</span>
+                    </button>
                 </div>
             </aside>
 

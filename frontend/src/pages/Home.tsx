@@ -37,44 +37,46 @@ const Home: React.FC = () => {
     ];
 
     return (
-        <div className="max-w-5xl mx-auto mt-6">
-            <div className="mb-14">
-                <h1 className="text-4xl font-bold mb-4 tracking-tight">双变量关联挖掘与非参数统计分析平台</h1>
-                <p className="text-[#8e8e8e] text-lg max-w-2xl leading-relaxed">
-                    基于启发式算法，让非专业统计人员也能通过简单的配置，获得专业、科学的成对变量关联洞察与统计检验支持。
+        <div className="max-w-6xl mx-auto py-12 px-6">
+            <div className="mb-16">
+                <h1 className="text-5xl font-extrabold tracking-tight text-[#37352f] mb-6">
+                    双变量关联挖掘与非参数统计分析平台
+                </h1>
+                <p className="text-xl text-[#8e8e8e] max-w-3xl leading-relaxed">
+                    基于启发式方案深度挖掘变量间关联关系，让非专业统计人员也能通过简单的配置，获得专业、科学的成对变量关联洞察与统计检验支持。
                 </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
                 {features.map((f, i) => (
                     <div
                         key={i}
                         onClick={() => navigate(f.path)}
-                        className="group notion-card p-6 cursor-pointer flex gap-5 items-start"
+                        className="group notion-card p-8 cursor-pointer flex gap-6 items-start hover:bg-[#efefee]/30 transition-all border border-[#e9e9e8] h-full"
                     >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${f.color}`}>
-                            <f.icon size={24} />
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${f.color} group-hover:scale-105 transition-transform`}>
+                            <f.icon size={28} />
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                            <h3 className="font-extrabold text-xl mb-3 flex items-center gap-2 text-[#37352f]">
                                 {f.title}
-                                <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-emerald-500" />
                             </h3>
-                            <p className="text-[#8e8e8e] text-sm leading-relaxed">{f.desc}</p>
+                            <p className="text-[#8e8e8e] text-base leading-relaxed">{f.desc}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            <div className="border border-dashed border-[#e9e9e8] rounded-xl p-12 text-center bg-white/50">
-                <div className="w-16 h-16 bg-blue-50 text-[#2383e2] rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Upload size={32} />
+            <div className="border-2 border-dashed border-[#e9e9e8] rounded-2xl p-20 text-center bg-white shadow-sm hover:border-emerald-200 transition-colors">
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                    <Upload size={40} />
                 </div>
-                <h3 className="text-xl font-bold mb-3">立即开始分析</h3>
-                <p className="text-[#8e8e8e] mb-8">拖入数据集或点击此处开始</p>
+                <h3 className="text-2xl font-bold mb-4 text-[#37352f]">立即开启智能分析之旅</h3>
+                <p className="text-lg text-[#8e8e8e] mb-10 max-w-md mx-auto leading-relaxed">导入您的数据集（CSV/Excel），让系统引擎自动为您探索变量间的深层联系。</p>
                 <button
                     onClick={() => navigate('/data')}
-                    className="notion-btn-primary px-8"
+                    className="notion-btn-primary px-12 py-4 text-lg shadow-lg hover:shadow-xl transition-all"
                 >
                     上传我的数据集
                 </button>
