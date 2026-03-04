@@ -8,6 +8,7 @@ from core.logging import logger
 class RuleMiner:
     def __init__(self):
         self.rules = []
+        self.counts = {} # 频数缓存，加速指标计算
 
     def generate_rules(
         self,
@@ -24,6 +25,7 @@ class RuleMiner:
         if df is None or df.empty:
             return []
 
+        self.counts = {} # 重置缓存
         # 转换为 transactions 结构
         transactions, total_count = self._df_to_transactions(df)
         if total_count == 0:
@@ -46,7 +48,7 @@ class RuleMiner:
                     
                     # A -> B
                     rules.append(self._calculate_rule_metrics(
-                        transactions, antecedent, consequent, total_count, calculate_p_value
+                        transactions, antecedent, consequent, total_count, calculate_p_value, itemset
                     ))
 
         # 3. 过滤
@@ -75,13 +77,10 @@ class RuleMiner:
                 processed_items.append(df[col].name + "=" + df[col].astype(str))
         
         temp_df = pd.concat(processed_items, axis=1)
-        transactions_list = temp_df.apply(lambda x: frozenset(x.dropna()), axis=1)
+        # 预先转换为 set 列表，极大加速 issubset 判读
+        transactions_list = [set(row) for row in temp_df.values]
         
-        counts = {}
-        for t in transactions_list:
-            counts[t] = counts.get(t, 0) + 1
-            
-        return transactions_list.to_list(), len(df)
+        return transactions_list, len(df)
 
     def _find_frequent_itemsets(
         self, 
@@ -103,6 +102,9 @@ class RuleMiner:
                 item_f = frozenset([item])
                 item_counts[item_f] = item_counts.get(item_f, 0) + 1
         
+        # 存入缓存
+        self.counts.update(item_counts)
+        
         L = {k: v / total_count for k, v in item_counts.items() if v >= min_count}
         frequent_itemsets.update(L)
         
@@ -114,10 +116,15 @@ class RuleMiner:
             
             candidate_counts = {}
             for t in transactions:
-                # 优化：只检查在事务中的候选集
+                # 预先过滤掉长度不足的事务（可选）
+                if len(t) < k: continue
+                # 只有当项集包含在事务中时计数
                 for c in candidates:
                     if c.issubset(t):
                         candidate_counts[c] = candidate_counts.get(c, 0) + 1
+            
+            # 更新缓存
+            self.counts.update(candidate_counts)
             
             current_L = [k for k, v in candidate_counts.items() if v >= min_count]
             if not current_L:
@@ -139,18 +146,30 @@ class RuleMiner:
 
     def _calculate_rule_metrics(
         self, 
-        transactions: List[frozenset], 
+        transactions: List[set], 
         A: frozenset, 
         B: frozenset, 
         total: int,
-        calc_p: bool
+        calc_p: bool,
+        itemset: frozenset = None
     ) -> Dict[str, Any]:
         """
         计算支持度、置信度、提升度及真实 P 值。
         """
-        a_count = sum(1 for t in transactions if A.issubset(t))
-        b_count = sum(1 for t in transactions if B.issubset(t))
-        ab_count = sum(1 for t in transactions if (A | B).issubset(t))
+        a_count = self.counts.get(A)
+        if a_count is None:
+            a_count = sum(1 for t in transactions if A.issubset(t))
+            self.counts[A] = a_count
+            
+        b_count = self.counts.get(B)
+        if b_count is None:
+            b_count = sum(1 for t in transactions if B.issubset(t))
+            self.counts[B] = b_count
+            
+        ab_count = self.counts.get(itemset) if itemset else None
+        if ab_count is None:
+            ab_count = sum(1 for t in transactions if (A | B).issubset(t))
+            if itemset: self.counts[itemset] = ab_count
         
         support = ab_count / total
         confidence = ab_count / a_count if a_count > 0 else 0
