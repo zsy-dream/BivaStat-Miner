@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Database, Settings2, LineChart, HelpCircle, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, Database, Settings2, LineChart, HelpCircle, User, LogOut, Menu } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -13,6 +13,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
     const menuItems = [
         { label: '首页总览', path: '/', icon: LayoutDashboard },
         { label: '数据管理', path: '/data', icon: Database },
@@ -21,9 +23,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ];
 
     return (
-        <div className="flex h-screen bg-[#fbfbfa]">
+        <div className="flex h-screen bg-[#fbfbfa] overflow-hidden relative">
+            {/* Mobile Sidebar Overlay */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/20 z-40 md:hidden transition-opacity"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-68 flex flex-col border-r border-[#e9e9e8] bg-[#fbfbfa] h-full transition-all duration-300">
+            <aside className={cn(
+                "fixed md:static inset-y-0 left-0 z-50 w-64 md:w-68 flex flex-col border-r border-[#e9e9e8] bg-[#fbfbfa] h-full transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none",
+                isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+            )}>
                 <div className="p-6 flex items-center gap-3">
                     <div className="w-9 h-9 bg-emerald-500 rounded-md flex items-center justify-center text-white font-bold text-xl shadow-sm">
                         B
@@ -65,12 +78,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-[45px] border-b border-[#e9e9e8] bg-white/80 backdrop-blur-md flex items-center justify-between px-6 z-10">
-                    <div className="flex items-center gap-2 text-xs text-[#8e8e8e]">
-                        <span>工作空间</span>
-                        <span>/</span>
-                        <span className="text-[#37352f] font-medium">智能分析平台</span>
+            <div className="flex-1 flex flex-col overflow-hidden w-full max-w-full">
+                <header className="h-[50px] md:h-[45px] border-b border-[#e9e9e8] bg-white/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-10 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <button
+                            className="p-1.5 hover:bg-[#efefee] rounded-md md:hidden transition-colors"
+                            onClick={() => setIsMobileMenuOpen(true)}
+                        >
+                            <Menu size={20} className="text-[#37352f]" />
+                        </button>
+                        <div className="flex items-center gap-2 text-xs text-[#8e8e8e] hidden sm:flex">
+                            <span>工作空间</span>
+                            <span>/</span>
+                            <span className="text-[#37352f] font-medium">智能分析平台</span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <button className="p-1 hover:bg-[#efefee] rounded-full transition-colors">
@@ -82,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-10 bg-[#fbfbfa]">
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 bg-[#fbfbfa] w-full">
                     {children}
                 </main>
             </div>

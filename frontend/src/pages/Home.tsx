@@ -37,46 +37,46 @@ const Home: React.FC = () => {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto py-12 px-6">
-            <div className="mb-16">
-                <h1 className="text-5xl font-extrabold tracking-tight text-[#37352f] mb-6">
+        <div className="max-w-6xl mx-auto py-8 px-5 md:py-12 md:px-6">
+            <div className="mb-10 md:mb-16 text-center md:text-left">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-[#37352f] mb-4 md:mb-6 leading-tight">
                     双变量关联挖掘与非参数统计分析平台
                 </h1>
-                <p className="text-xl text-[#8e8e8e] max-w-3xl leading-relaxed">
+                <p className="text-base sm:text-lg md:text-xl text-[#8e8e8e] max-w-3xl leading-relaxed mx-auto md:mx-0">
                     基于启发式方案深度挖掘变量间关联关系，让非专业统计人员也能通过简单的配置，获得专业、科学的成对变量关联洞察与统计检验支持。
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-10 md:mb-16">
                 {features.map((f, i) => (
                     <div
                         key={i}
                         onClick={() => navigate(f.path)}
-                        className="group notion-card p-8 cursor-pointer flex gap-6 items-start hover:bg-[#efefee]/30 transition-all border border-[#e9e9e8] h-full"
+                        className="group notion-card p-5 sm:p-6 md:p-8 cursor-pointer flex gap-4 md:gap-6 items-start hover:bg-[#efefee]/30 transition-all border border-[#e9e9e8] h-full"
                     >
-                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${f.color} group-hover:scale-105 transition-transform`}>
-                            <f.icon size={28} />
+                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${f.color} group-hover:scale-105 transition-transform`}>
+                            <f.icon className="w-6 h-6 md:w-7 md:h-7" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-extrabold text-xl mb-3 flex items-center gap-2 text-[#37352f]">
+                            <h3 className="font-extrabold text-lg md:text-xl mb-2 md:mb-3 flex items-center gap-2 text-[#37352f]">
                                 {f.title}
-                                <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-emerald-500" />
+                                <ArrowRight size={18} className="opacity-0 md:group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-emerald-500 hidden sm:block" />
                             </h3>
-                            <p className="text-[#8e8e8e] text-base leading-relaxed">{f.desc}</p>
+                            <p className="text-[#8e8e8e] text-sm md:text-base leading-relaxed">{f.desc}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            <div className="border-2 border-dashed border-[#e9e9e8] rounded-2xl p-20 text-center bg-white shadow-sm hover:border-emerald-200 transition-colors">
-                <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                    <Upload size={40} />
+            <div className="border-2 border-dashed border-[#e9e9e8] rounded-2xl p-8 sm:p-12 md:p-20 text-center bg-white shadow-sm hover:border-emerald-200 transition-colors">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-inner">
+                    <Upload className="w-8 h-8 md:w-10 md:h-10" />
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-[#37352f]">立即开启智能分析之旅</h3>
-                <p className="text-lg text-[#8e8e8e] mb-10 max-w-md mx-auto leading-relaxed">导入您的数据集（CSV/Excel），让系统引擎自动为您探索变量间的深层联系。</p>
+                <h3 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-[#37352f]">立即开启智能分析之旅</h3>
+                <p className="text-base md:text-lg text-[#8e8e8e] mb-8 md:mb-10 max-w-md mx-auto leading-relaxed">导入您的数据集（CSV/Excel），让系统引擎自动为您探索变量间的深层联系。</p>
                 <button
                     onClick={() => navigate('/data')}
-                    className="notion-btn-primary px-12 py-4 text-lg shadow-lg hover:shadow-xl transition-all"
+                    className="notion-btn-primary px-8 py-3 md:px-12 md:py-4 text-base md:text-lg shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
                 >
                     上传我的数据集
                 </button>
