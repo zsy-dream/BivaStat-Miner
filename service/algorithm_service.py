@@ -221,7 +221,7 @@ class RuleMiner:
             'confidence': float(confidence),
             'lift': float(lift),
             'p_value': float(p_val),
-            'significant': p_val < 0.05
+            'significant': bool(p_val < 0.05)
         }
 
 class AlgorithmService:
@@ -278,10 +278,10 @@ class AlgorithmService:
                 'test_name': name,
                 'statistic': float(stat),
                 'p_value': float(p),
-                'alpha': alpha,
-                'significant': p < alpha,
-                'var1': var1,
-                'var2': var2
+                'alpha': float(alpha),
+                'significant': bool(p < alpha),
+                'var1': str(var1),
+                'var2': str(var2)
             }
         except Exception as e:
             logger.error(f"Statistical test error: {e}")

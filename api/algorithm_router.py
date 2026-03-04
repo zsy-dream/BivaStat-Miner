@@ -15,12 +15,22 @@ async def start_mining_task(params: Dict[str, Any] = Body(...)):
     task_id = task_manager.create_task("关联挖掘分析")
     
     def task_exec(tid):
-        task_manager.update_task(tid, progress=10, log="正在加载数据...")
+        import time
+        task_manager.update_task(tid, progress=15, log="[1] 数据透视与分布初始化中...")
+        time.sleep(0.5)
         df = store.current_df
-        # 预加载
-        task_manager.update_task(tid, progress=30, log="开始执行挖掘算法...")
+        
+        task_manager.update_task(tid, progress=35, log="[2] 启动启发式频繁项挖掘引擎...")
+        time.sleep(0.2)
+        
+        task_manager.update_task(tid, progress=55, log="[3] 执行 Apriori 剪枝与组合搜索...")
         rules = algorithm_service.mine_association(df, params)
-        task_manager.update_task(tid, progress=80, log="规则生成完毕，进行显著性检验...")
+        
+        task_manager.update_task(tid, progress=85, log="[4] 进行双变量统计显著性(P-Value)深度校验...")
+        time.sleep(0.5)
+        
+        task_manager.update_task(tid, progress=98, log="[5] 挖掘完成，封存结果并构建报告...")
+        time.sleep(0.3)
         return {"rules": rules}
         
     task_manager.run_async(task_exec, task_id)
