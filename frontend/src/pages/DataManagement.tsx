@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Upload, FileText, CheckCircle, AlertCircle, BarChart2, Filter } from 'lucide-react';
+import { cn } from '../utils/cn';
 import { API_ENDPOINTS } from '../utils/api';
 
 const API_BASE = API_ENDPOINTS.DATA;
@@ -10,6 +11,9 @@ const DataManagement: React.FC = () => {
     const [dataInfo, setDataInfo] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [qualityReport, setQualityReport] = useState<any>(null);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isStatsOpen, setIsStatsOpen] = useState(false);
 
     const fetchCurrent = async () => {
         try {
@@ -147,16 +151,64 @@ const DataManagement: React.FC = () => {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold flex items-center gap-2">数据预览 (Top 10)</h3>
                             <div className="flex gap-2">
-                                <button className="notion-btn-ghost flex items-center gap-1 text-xs">
+                                <button
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className={cn(
+                                        "notion-btn-ghost flex items-center gap-1 text-xs",
+                                        isFilterOpen && "bg-[#efefee] text-primary-600"
+                                    )}
+                                >
                                     <Filter size={14} />
                                     筛选
                                 </button>
-                                <button className="notion-btn-ghost flex items-center gap-1 text-xs">
+                                <button
+                                    onClick={() => setIsStatsOpen(!isStatsOpen)}
+                                    className={cn(
+                                        "notion-btn-ghost flex items-center gap-1 text-xs",
+                                        isStatsOpen && "bg-[#efefee] text-primary-600"
+                                    )}
+                                >
                                     <BarChart2 size={14} />
                                     统计图表
                                 </button>
                             </div>
                         </div>
+
+                        {isFilterOpen && (
+                            <div className="mb-4 px-1">
+                                <input
+                                    type="text"
+                                    placeholder="在当前预览数据中搜索关键词..."
+                                    className="w-full text-sm border border-[#e9e9e8] rounded-md px-3 py-2 bg-[#fbfbfa] focus:outline-none focus:ring-1 focus:ring-primary-400"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {isStatsOpen && (
+                            <div className="mb-6 p-4 bg-[#fbfbfa] border rounded-lg grid grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                {dataInfo.columns.slice(0, 4).map((col: string) => {
+                                    const values = dataInfo.preview.map((r: any) => parseFloat(r[col])).filter((v: number) => !isNaN(v));
+                                    const avg = values.length ? (values.reduce((a: number, b: number) => a + b, 0) / values.length).toFixed(2) : 'N/A';
+                                    const max = values.length ? Math.max(...values).toFixed(2) : 'N/A';
+
+                                    return (
+                                        <div key={col} className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-bold text-[#8e8e8e] uppercase truncate">{col}</span>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-lg font-black text-[#37352f]">{avg}</span>
+                                                <span className="text-[10px] text-[#8e8e8e]">avg</span>
+                                            </div>
+                                            <div className="text-[10px] text-emerald-600 font-medium">Max: {max}</div>
+                                        </div>
+                                    );
+                                })}
+                                <div className="col-span-4 text-[10px] text-[#8e8e8e] mt-2 border-t pt-2 italic">
+                                    * 统计数据基于前 {dataInfo.preview.length} 条记录计算，完整分析请前往“分析结果”页面。
+                                </div>
+                            </div>
+                        )}
                         <div className="overflow-x-auto border rounded-lg">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-[#f7f6f3] border-b text-xs font-bold text-[#8e8e8e]">
@@ -167,13 +219,19 @@ const DataManagement: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {dataInfo.preview.map((row: any, i: number) => (
-                                        <tr key={i} className="border-b last:border-0 hover:bg-[#fbfbfa]">
-                                            {dataInfo.columns.map((c: string) => (
-                                                <td key={c} className="px-4 py-2 border-r last:border-r-0 truncate max-w-[200px]">{row[c]?.toString() || ''}</td>
-                                            ))}
-                                        </tr>
-                                    ))}
+                                    {dataInfo.preview
+                                        .filter((row: any) =>
+                                            Object.values(row).some(val =>
+                                                String(val).toLowerCase().includes(searchTerm.toLowerCase())
+                                            )
+                                        )
+                                        .map((row: any, i: number) => (
+                                            <tr key={i} className="border-b last:border-0 hover:bg-[#fbfbfa]">
+                                                {dataInfo.columns.map((c: string) => (
+                                                    <td key={c} className="px-4 py-2 border-r last:border-r-0 truncate max-w-[200px]">{row[c]?.toString() || ''}</td>
+                                                ))}
+                                            </tr>
+                                        ))}
                                 </tbody>
                             </table>
                         </div>
