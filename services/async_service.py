@@ -42,7 +42,7 @@ def async_algorithm_task(task_id, manager):
 
         # --- Step 1: 数据加载 ---
         manager.update_task(task_id, step_update={'index': 0, 'status': 'running'}, logs=['开始加载原始数据集...'])
-        time.sleep(1) # Simulate delay
+        time.sleep(0.1) # 显著降低等待时间
         
         if 'data_path' in params:
              # 关键修复：清洗后的数据可能是“虚拟路径”(xxx.cleaned)，只能从缓存取
@@ -72,9 +72,9 @@ def async_algorithm_task(task_id, manager):
         # Simulate processing chunks
         # 避免小数据集 total_records//10 为 0，导致 processed 一直是 0
         chunk_size = max(1, total_records // 10) if total_records > 0 else 1
-        for i in range(0, 5): # 缩短循环
+        for i in range(0, 5): 
             if manager.get_task(task_id)['status'] == 'cancelled': return
-            time.sleep(0.1) 
+            time.sleep(0.01) 
             processed = (i + 1) * chunk_size
             mem = psutil.virtual_memory()
             current_progress = 10 + i * 4
@@ -111,7 +111,7 @@ def async_algorithm_task(task_id, manager):
         # 植入技术术语日志 (基于用户配置)
         if enable_pruning:
             manager.update_task(task_id, logs=['[启发式算法] 启用 Apriori 剪枝策略优化搜索空间...'])
-            time.sleep(0.5)
+            time.sleep(0.1)
             pruned_count = random.randint(100, 300)
             manager.update_task(task_id, logs=[f'[剪枝策略] 第一轮扫描完成，基于反单调性剪除 {pruned_count} 个非频繁候选项集'])
         
@@ -121,7 +121,7 @@ def async_algorithm_task(task_id, manager):
         
         # Simulate L1, L2 generation
         manager.update_task(task_id, logs=['生成频繁项集 L1...'])
-        time.sleep(0.5)
+        time.sleep(0.1)
         manager.update_task(
             task_id,
             progress=40,
@@ -130,7 +130,7 @@ def async_algorithm_task(task_id, manager):
         )
         
         manager.update_task(task_id, logs=['生成频繁项集 L2...'])
-        time.sleep(0.5)
+        time.sleep(0.1)
         manager.update_task(
             task_id,
             progress=50,
@@ -182,7 +182,7 @@ def async_algorithm_task(task_id, manager):
             f"[置信区间] 计算 {params.get('confidence_interval', 0.95)*100}% 置信区间 (Bootstrap Sampling n=1000)"
         ])
         
-        time.sleep(1)
+        time.sleep(0.2)
         manager.update_task(
             task_id,
             step_update={'index': 3, 'status': 'completed'},

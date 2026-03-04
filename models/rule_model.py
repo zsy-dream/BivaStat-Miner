@@ -7,6 +7,7 @@ from itertools import combinations
 class RuleModel:
     def __init__(self):
         self.rules = []
+        self.support_cache: Dict[frozenset, int] = {} # 用于存储项集频数，避免重复扫描数据集
 
     def filter_rules(self, rules: List[Dict], min_support: float) -> List[Dict]:
         if not rules or min_support <= 0 or min_support > 1:
@@ -55,7 +56,13 @@ class RuleModel:
         # 限制最大项集长度，避免规则爆炸
         max_len = int(max_len) if max_len else 5
         max_len = max(2, min(max_len, 10))
+        self.support_cache = {} # 重置缓存
         frequent_itemsets = self._find_frequent_itemsets(transactions, all_items, min_support, max_len=max_len)
+        
+        num_transactions = len(transactions)
+        # 预转换所有交易为 set，只转换一次
+        trans_sets = [set(t) for t in transactions]
+        
         rules = []
         for itemset in frequent_itemsets:
             if len(itemset) < 2:
@@ -72,14 +79,30 @@ class RuleModel:
                     if not antecedent or not consequent:
                         continue
 
-                    support = self._calculate_support(transactions, list(itemset))
-                    confidence = self._calculate_confidence(transactions, antecedent, consequent)
+                    # 使用缓存或单次扫描计算各项频率
+                    itemset_fs = frozenset(itemset)
+                    support = self.support_cache.get(itemset_fs, 0) / num_transactions
+                    
+                    antecedent_count = self.support_cache.get(antecedent, 0)
+                    if antecedent_count == 0:
+                        # 兜底计算（通常在频繁项集中不会发生）
+                        antecedent_count = sum(1 for t in trans_sets if antecedent.issubset(t))
+                        self.support_cache[antecedent] = antecedent_count
+                    
+                    confidence = (self.support_cache.get(itemset_fs, 0) / antecedent_count) if antecedent_count > 0 else 0
 
                     if confidence >= min_confidence:
-                        lift = self._calculate_lift(transactions, antecedent, consequent)
+                        consequent_count = self.support_cache.get(consequent, 0)
+                        if consequent_count == 0:
+                            consequent_count = sum(1 for t in trans_sets if consequent.issubset(t))
+                            self.support_cache[consequent] = consequent_count
+                        
+                        lift = confidence / (consequent_count / num_transactions) if consequent_count > 0 else 0
                         if lift < float(min_lift):
                             continue
-                        conviction = self._calculate_conviction(transactions, antecedent, consequent)
+                        
+                        # Conviction 计算
+                        conviction = (1 - (consequent_count / num_transactions)) / (1 - confidence) if confidence < 1 else float('inf')
 
                         # 与前端字段对齐：使用 antecedents/consequents
                         # 并提供 p_value 的保底值，避免前端渲染报错
@@ -112,26 +135,29 @@ class RuleModel:
     ) -> List[List[str]]:
         frequent_itemsets = []
         k = 1
+        num_transactions = len(transactions)
+        # 预转换所有交易为 set，避免在循环内重复转换
+        trans_sets = [set(t) for t in transactions]
+        
         current_itemsets = [frozenset([item]) for item in items]
 
         while current_itemsets:
             if k > max_len:
                 break
             candidate_counts = {}
-            for transaction in transactions:
-                trans_set = set(transaction)  # 优化：转为set加速查找
+            for trans_set in trans_sets:
                 for itemset in current_itemsets:
                     if itemset.issubset(trans_set):
                         candidate_counts[itemset] = candidate_counts.get(itemset, 0) + 1
 
-            num_transactions = len(transactions)
             frequent_itemsets_k = []
             for itemset, count in candidate_counts.items():
+                self.support_cache[itemset] = count # 存入全局缓存
                 support = count / num_transactions
                 if support >= min_support:
                     frequent_itemsets_k.append(list(itemset))
 
-            if not frequent_itemsets_k:  # 如果这一层没有频繁项集，直接结束
+            if not frequent_itemsets_k:
                 break
 
             frequent_itemsets.extend(frequent_itemsets_k)
