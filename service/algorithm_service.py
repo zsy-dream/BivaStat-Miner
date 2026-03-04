@@ -109,29 +109,48 @@ class RuleMiner:
         frequent_itemsets.update(L)
         
         current_L = list(L.keys())
+        # 将 L1 的 items 存入 set 以便 $O(1)$ 查找
+        frequent_items_set = {list(x)[0] for x in current_L}
+        
         for k in range(2, max_len + 1):
+            # 候选集生成
             candidates = self._generate_candidates(current_L, k)
             if not candidates:
                 break
             
+            # 使用更高效的计数策略：
+            # 如果候选集数量巨大，或者只是处理双变量 (k=2)
+            # 遍历事务并生成其中的项集组合，通常比遍历百万个候选集快得多
             candidate_counts = {}
+            candidates_set = set(candidates)
+            
             for t in transactions:
-                # 预先过滤掉长度不足的事务（可选）
                 if len(t) < k: continue
-                # 只有当项集包含在事务中时计数
-                for c in candidates:
-                    if c.issubset(t):
+                # 只保留处于 L_{k-1} 阶段的频繁项中的成员
+                t_frequent = [item for item in t if item in frequent_items_set]
+                if len(t_frequent) < k: continue
+                
+                # 生成事务中所有可能的 k 项组合
+                for combo in combinations(sorted(t_frequent), k):
+                    c = frozenset(combo)
+                    if c in candidates_set:
                         candidate_counts[c] = candidate_counts.get(c, 0) + 1
             
-            # 更新缓存
-            self.counts.update(candidate_counts)
-            
-            current_L = [k for k, v in candidate_counts.items() if v >= min_count]
+            # 更新 L 列表
+            current_L = [k_set for k_set, count in candidate_counts.items() if count >= min_count]
             if not current_L:
                 break
-                
+            
+            # 记录频繁项集及其比例，并存入缓存
             for c in current_L:
-                frequent_itemsets[c] = candidate_counts[c] / total_count
+                freq = candidate_counts[c] / total_count
+                frequent_itemsets[c] = freq
+                self.counts[c] = candidate_counts[c]
+            
+            # 更新频繁项集合，供下一轮过滤使用
+            frequent_items_set = set()
+            for fs in current_L:
+                frequent_items_set.update(fs)
         
         return frequent_itemsets
 
