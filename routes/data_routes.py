@@ -585,15 +585,32 @@ def _render_quality_html(assessment: dict, dataset_name: str) -> str:
 def auto_profile():
     """
     针对当前数据集做一次“体检”，并给出推荐的挖掘/检验参数。
-    供算法配置页和结果分析页自动读取，降低用户选参数的负担。
+    支持通过 task_id 指定数据集。
     """
     try:
-        # 1. 获取当前数据（使用全局状态管理器的线程安全方法）
-        df, path = global_state.get_current_data()
+        task_id = request.args.get('task_id')
+        df = None
+        path = None
+
+        if task_id:
+            from services.algorithm_service import algorithm_service
+            task = algorithm_service.get_task(task_id)
+            if task:
+                # 尝试从任务中恢复数据路径
+                path = task.get('file_path') or task.get('cleaned_path')
+                if path:
+                    df = get_data(path)
+                
+                # 如果任务中有结果，也可以从结果中获取一些提示
+                # 注意：这里我们主要需要 df 进行体检
         
-        # 如果全局状态为空，尝试从 model 层兜底（通常同步）
-        if df is None or df.empty:
-            df = data_model_instance.current_data
+        if df is None:
+            # 1. 获取当前数据（使用全局状态管理器的线程安全方法）
+            df, path = global_state.get_current_data()
+            
+            # 如果全局状态为空，尝试从 model 层兜底（通常同步）
+            if df is None or df.empty:
+                df = data_model_instance.current_data
 
         if df is None or df.empty:
             return jsonify({

@@ -171,16 +171,43 @@ class EnhancedReportService:
             raise DataException(f"生成综合报告失败: {str(e)}")
 
     def _dedupe_ai_sections(self, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
-        """避免 AI 执行摘要与 AI 深度解读内容完全相同导致重复渲染。"""
+        """避免 AI 执行摘要与 AI 深度解读内容完全相同或高度重复导致多次渲染。"""
         normalized_results = dict(analysis_results or {})
         ai_exec = normalized_results.get('ai_executive_summary')
         ai_analysis = normalized_results.get('ai_analysis')
 
-        if self._normalize_ai_text(ai_exec) and self._normalize_ai_text(ai_exec) == self._normalize_ai_text(ai_analysis):
+        if not ai_exec or not ai_analysis:
+            return normalized_results
+
+        # 归一化文本
+        norm_exec = self._normalize_ai_text(ai_exec)
+        norm_analysis = self._normalize_ai_text(ai_analysis)
+
+        if not norm_exec or not norm_analysis:
+            return normalized_results
+
+        # 1. 完全相同（归一化后）
+        if norm_exec == norm_analysis:
+            logger.info("AI 执行摘要与深度解读完全相同，移除冗余深度解读部分。")
+            normalized_results['ai_analysis'] = ''
+            normalized_results.pop('ai_analysis_html', None)
+            return normalized_results
+
+        # 2. 摘要包含在深度解读中（常见情况：大模型把摘要放到了深度解读头部）
+        if len(norm_exec) > 50 and norm_exec in norm_analysis:
+            logger.info("AI 执行摘要已包含在深度解读中，为避免重复显示，仅保留深度解读并清空摘要字段。")
+            normalized_results['ai_executive_summary'] = ''
+            normalized_results.pop('ai_executive_summary_html', None)
+            return normalized_results
+            
+        # 3. 反之：深度解读包含在摘要中（较少见）
+        if len(norm_analysis) > 50 and norm_analysis in norm_exec:
+            logger.info("AI 深度解读已包含在摘要中，移除冗余深度解读部分。")
             normalized_results['ai_analysis'] = ''
             normalized_results.pop('ai_analysis_html', None)
 
         return normalized_results
+
 
     def _normalize_ai_text(self, content: Any) -> str:
         """对 AI 文本做轻量归一化，用于重复内容判断。"""

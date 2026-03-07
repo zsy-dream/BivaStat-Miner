@@ -39,7 +39,9 @@ class AIService:
         # 默认推理参数，可通过 config.json 的 ai 段覆盖
         self.default_temperature: float = 0.7
         self.default_max_tokens: int = 2048
-        self.timeout: int = 60
+        self.timeout: int = 120          # 海外部署访问华为云需要更长超时
+        self.max_retries: int = 2         # 最大重试次数
+        self.retry_delay: float = 2.0     # 重试间隔秒数
         # 缓存：{fingerprint: (timestamp, content)}
         self._cache: Dict[str, tuple[float, str]] = {}
 
@@ -117,30 +119,61 @@ class AIService:
             "stream": stream
         }
 
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=self.timeout,
-                stream=stream
+        last_error: Optional[Exception] = None
+        attempts = self.max_retries + 1 if not stream else 1  # 流式不重试
+
+        for attempt in range(1, attempts + 1):
+            try:
+                logger.info(f"AI API 调用 (第{attempt}次): {self.api_url}, model={self.model}")
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout,
+                    stream=stream
+                )
+                response.raise_for_status()
+
+                if stream:
+                    return self._parse_stream(response)
+                else:
+                    return response.json()
+
+            except requests.exceptions.Timeout as e:
+                last_error = e
+                logger.error(f"AI API 调用超时 (第{attempt}次, timeout={self.timeout}s)")
+                if attempt < attempts:
+                    logger.info(f"等待 {self.retry_delay}s 后重试...")
+                    time.sleep(self.retry_delay)
+                    continue
+            except requests.exceptions.ConnectionError as e:
+                last_error = e
+                logger.error(f"AI API 连接失败 (第{attempt}次): {str(e)}")
+                if attempt < attempts:
+                    logger.info(f"等待 {self.retry_delay}s 后重试...")
+                    time.sleep(self.retry_delay)
+                    continue
+            except requests.exceptions.HTTPError as e:
+                logger.error(f"AI API HTTP 错误：{e.response.status_code} - {e.response.text[:500]}")
+                raise RuntimeError(
+                    f"AI API 返回错误 ({e.response.status_code}): {e.response.text[:200]}"
+                )
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                logger.error(f"AI API 网络错误 (第{attempt}次)：{type(e).__name__}: {str(e)}")
+                if attempt < attempts:
+                    time.sleep(self.retry_delay)
+                    continue
+
+        # 所有重试都失败了
+        if isinstance(last_error, requests.exceptions.Timeout):
+            raise RuntimeError(
+                f"AI 推理超时（已重试{attempts}次, 每次{self.timeout}s）。"
+                "部署服务器可能无法访问华为云 API，请检查网络连通性。"
             )
-            response.raise_for_status()
-
-            if stream:
-                return self._parse_stream(response)
-            else:
-                return response.json()
-
-        except requests.exceptions.Timeout:
-            logger.error("AI API 调用超时")
-            raise RuntimeError("AI 推理超时，请稍后重试")
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"AI API HTTP 错误：{e.response.status_code} - {e.response.text}")
-            raise RuntimeError(f"AI API 返回错误 ({e.response.status_code})")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"AI API 网络错误：{str(e)}")
-            raise RuntimeError("无法连接到 AI 服务，请检查网络")
+        raise RuntimeError(
+            f"无法连接到 AI 服务（已重试{attempts}次）: {type(last_error).__name__}: {str(last_error)}"
+        )
 
     def _parse_stream(self, response: requests.Response) -> Generator:
         """
@@ -584,6 +617,59 @@ class AIService:
 
         response = self._call_llm(messages, temperature=0.7, max_tokens=2048)
         return self._extract_content(response)
+
+    def test_connection(self) -> Dict[str, Any]:
+        """
+        测试与华为云 MaaS API 的连通性（不消耗大量 token）。
+        返回诊断信息字典。
+        """
+        result: Dict[str, Any] = {
+            "api_url": self.api_url,
+            "model": self.model,
+            "api_key_set": bool(self.api_key),
+            "timeout": self.timeout,
+        }
+        if not self.api_key:
+            result["status"] = "error"
+            result["message"] = "未配置 HUAWEI_MAAS_API_KEY"
+            return result
+
+        try:
+            start = time.time()
+            resp = requests.post(
+                self.api_url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "max_tokens": 5,
+                },
+                timeout=30,
+            )
+            elapsed = round(time.time() - start, 2)
+            result["latency_seconds"] = elapsed
+            result["http_status"] = resp.status_code
+
+            if resp.ok:
+                result["status"] = "ok"
+                result["message"] = f"连接成功，延迟 {elapsed}s"
+            else:
+                result["status"] = "error"
+                result["message"] = f"HTTP {resp.status_code}: {resp.text[:300]}"
+        except requests.exceptions.Timeout:
+            result["status"] = "timeout"
+            result["message"] = "连接超时（30s），服务器可能无法访问华为云 API"
+        except requests.exceptions.ConnectionError as e:
+            result["status"] = "unreachable"
+            result["message"] = f"无法连接: {str(e)[:300]}"
+        except Exception as e:
+            result["status"] = "error"
+            result["message"] = f"{type(e).__name__}: {str(e)[:300]}"
+
+        return result
 
     def chat_stream(
         self,

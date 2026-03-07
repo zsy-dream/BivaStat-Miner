@@ -343,13 +343,17 @@ export const dataService = {
     },
 
     /** 获取数据画像与推荐参数 */
-    async getProfile(signal?: AbortSignal): Promise<ApiResponse & {
+    async getProfile(taskId?: string | null, signal?: AbortSignal): Promise<ApiResponse & {
         profile?: DataProfile;
         recommendations?: ProfileRecommendations;
         assessment?: DataQualityAssessment;
         miningReadiness?: MiningDiagnostics;
     }> {
-        const res = await http.get(`${API_ENDPOINTS.DATA}/profile`, { signal });
+        const res = await http.get(`${API_ENDPOINTS.DATA}/profile`, {
+            params: taskId ? { task_id: taskId } : {},
+            signal
+        });
+
         const payload = unwrapData<Record<string, unknown>>(res.data) ?? {};
         const rawProfile = (payload.profile ?? {}) as Record<string, unknown>;
         const assessment = normalizeDataQualityAssessment(payload.assessment);

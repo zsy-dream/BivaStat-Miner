@@ -25,6 +25,17 @@ def ai_status():
     })
 
 
+@ai_bp.route('/test_connection', methods=['GET'])
+def test_connection():
+    """测试 AI 服务连通性，返回详细诊断信息"""
+    try:
+        result = ai_service.test_connection()
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        logger.error(f"AI 连通性测试异常：{str(e)}")
+        return jsonify({'success': False, 'status': 'error', 'message': str(e)}), 500
+
+
 @ai_bp.route('/analyze_rules', methods=['POST'])
 def analyze_rules():
     """
@@ -86,7 +97,14 @@ def analyze_rules():
         logger.error(f"AI 分析规则失败：{str(e)}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'hint': '如果反复失败，请访问 /api/ai/test_connection 检查 AI 服务连通性'
+        }), 500
+    except Exception as e:
+        logger.error(f"AI 分析规则未预期异常：{type(e).__name__}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'AI 分析异常: {type(e).__name__}: {str(e)}'
         }), 500
 
 
@@ -119,7 +137,14 @@ def generate_summary():
         logger.error(f"AI 生成摘要失败：{str(e)}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'hint': '如果反复失败，请访问 /api/ai/test_connection 检查 AI 服务连通性'
+        }), 500
+    except Exception as e:
+        logger.error(f"AI 生成摘要未预期异常：{type(e).__name__}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'AI 摘要异常: {type(e).__name__}: {str(e)}'
         }), 500
 
 

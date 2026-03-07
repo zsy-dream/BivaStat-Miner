@@ -166,7 +166,8 @@ def generate_report():
                     report_data['ai_executive_summary'] = ai_summary
                     logger.info("AI 执行摘要生成成功")
             except Exception as e:
-                logger.warning(f"AI 摘要生成失败，跳过：{str(e)}")
+                logger.warning(f"AI 摘要生成失败，跳过：{type(e).__name__}: {str(e)}")
+                report_data['ai_summary_error'] = str(e)
 
         # 3. 生成 HTML
         report_html = report_service_module.generate_template(report_data)

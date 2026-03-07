@@ -267,19 +267,32 @@ export default function Visualization() {
                 selectedType === 'line' ? `趋势窗口：${String(config.trendline_window ?? 5)}` : '',
                 selectedType === 'scatter' ? `趋势线：${config.add_trendline ? '开启' : '关闭'}` : '',
             ].filter(Boolean);
+
+            // 构造分享链接：确保包含 taskId，这样其他人打开链接能加载到相同的数据基础
+            const url = new URL(window.location.href);
+            if (sourceTaskId && !url.searchParams.has('task_id')) {
+                url.searchParams.set('task_id', sourceTaskId);
+            }
+            if (selectedType && !url.searchParams.has('preset')) {
+                url.searchParams.set('preset', selectedType === 'correlation_heatmap' ? 'correlation_overview' : selectedType);
+            }
+
             const shareText = [
                 '分享一张当前图表：',
                 `图表类型：${chartName}`,
                 sourceRuleText ? `来源规则：${sourceRuleText}` : '',
                 keyHighlights.join('｜'),
-                `页面链接：${window.location.href}`,
+                `页面链接：${url.toString()}`,
             ].filter(Boolean).join('\n');
+
             await navigator.clipboard.writeText(shareText);
-            toast.success('当前图表配置和链接已复制');
-        } catch {
+            toast.success('当前图表配置和分享链接已复制，协作伙伴可直接打开此链接查看图表。');
+        } catch (e) {
+            console.error('Sharing failed:', e);
             toast.error('图表配置和链接复制失败，请稍后重试');
         }
     };
+
 
     const resolveAutoRulePreset = (xCol: string, yCol: string) => {
         if (!profile) {
@@ -435,11 +448,12 @@ export default function Visualization() {
     };
 
     useAbortEffect((signal) => {
-        dataService.getProfile(signal)
+        dataService.getProfile(sourceTaskId, signal)
             .then(res => {
                 if (res.success && res.profile) {
                     const prof = res.profile;
                     setProfile(prof);
+
                     if (prof.numeric_cols?.length > 0) {
                         setConfig(prev => ({
                             ...prev,
@@ -449,7 +463,7 @@ export default function Visualization() {
                     }
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     useAbortEffect((signal) => {
@@ -1379,7 +1393,7 @@ export default function Visualization() {
                                         {primaryColumnOptions.map((col) => <option key={col} value={col}>{col}</option>)}
                                     </select>
                                 </div>
-                        {['scatter', 'line', 'box', 'bar'].includes(selectedType) && (
+                                {['scatter', 'line', 'box', 'bar'].includes(selectedType) && (
                                     <div>
                                         <label className="text-xs font-semibold text-[#787774] mb-2 block flex items-center gap-1"><Type size={12} /> {['scatter', 'line'].includes(selectedType) ? '副维度 (Y)' : '副维度 / 分组 (可选)'}</label>
                                         <select
@@ -1458,7 +1472,7 @@ export default function Visualization() {
 
                         {selectedType === 'scatter' && (
                             <div className="space-y-3 pt-4 border-t border-[#e9e9e8]">
-                        <label className="flex items-center gap-2 text-sm text-[#37352f] cursor-pointer">
+                                <label className="flex items-center gap-2 text-sm text-[#37352f] cursor-pointer">
                                     <input type="checkbox" className="accent-[#2383e2]" checked={config.add_trendline} onChange={e => setRememberedConfig({ ...config, add_trendline: e.target.checked })} />
                                     显示趋势线
                                 </label>
@@ -1620,24 +1634,24 @@ export default function Visualization() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={suggestedFailureAction.onClick}
-                                                    className="rounded-lg border border-current/15 bg-white/90 px-2.5 py-1 text-[10px] font-bold transition-all hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 active:scale-[0.97]"
-                                                >
-                                                    {suggestedFailureAction.label}
-                                                </button>
-                                            )}
-                                            {shouldShowRetryAction && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { void handleRetryDownload(); }}
-                                                    className="rounded-lg border border-current/15 bg-white/80 px-2.5 py-1 text-[10px] font-bold transition-all hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 active:scale-[0.97]"
-                                                >
-                                                    重试
-                                                </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => setDownloadStatus({ type: '', state: 'idle', stage: '', message: '', hint: '' })}
-                                                className="ml-auto rounded-lg p-1.5 text-current/70 transition-all hover:bg-white/80 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30"
+                                                                    className="rounded-lg border border-current/15 bg-white/90 px-2.5 py-1 text-[10px] font-bold transition-all hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 active:scale-[0.97]"
+                                                                >
+                                                                    {suggestedFailureAction.label}
+                                                                </button>
+                                                            )}
+                                                            {shouldShowRetryAction && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { void handleRetryDownload(); }}
+                                                                    className="rounded-lg border border-current/15 bg-white/80 px-2.5 py-1 text-[10px] font-bold transition-all hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 active:scale-[0.97]"
+                                                                >
+                                                                    重试
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDownloadStatus({ type: '', state: 'idle', stage: '', message: '', hint: '' })}
+                                                                className="ml-auto rounded-lg p-1.5 text-current/70 transition-all hover:bg-white/80 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30"
                                                                 title="关闭提示"
                                                             >
                                                                 <X size={13} />
@@ -1651,7 +1665,7 @@ export default function Visualization() {
                                                     <button
                                                         type="button"
                                                         onClick={suggestedFailureAction.onClick}
-                                                    className="rounded-lg border border-current/15 bg-white/90 px-2.5 py-1 text-[10px] font-bold transition-all hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 active:scale-[0.97]"
+                                                        className="rounded-lg border border-current/15 bg-white/90 px-2.5 py-1 text-[10px] font-bold transition-all hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 active:scale-[0.97]"
                                                     >
                                                         {suggestedFailureAction.label}
                                                     </button>
@@ -1684,7 +1698,7 @@ export default function Visualization() {
                                 <div className="flex items-center gap-1 rounded-xl border border-[#e9e9e8] bg-white px-1.5 py-1 shadow-sm max-[390px]:gap-0.5 max-[390px]:px-1">
                                     <span className="hidden sm:inline-flex px-1.5 text-[10px] font-black uppercase tracking-widest text-[#b4b4b3]">缩放</span>
                                     <div className="flex min-w-0 items-center gap-1 rounded-lg border border-[#e9e9e8] bg-[#fcfcfb] px-1 py-1 max-[390px]:gap-0.5 max-[390px]:px-0.5">
-                                    <button className={cn("rounded-md px-2 py-1.5 text-[11px] font-bold transition-all disabled:opacity-50 max-[420px]:px-1.5 max-[360px]:text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 active:scale-[0.97]", Math.abs(zoomLevel - 0.9) < 0.001 ? "bg-[#2383e2] text-white" : "text-[#787774] hover:bg-[#f5f5f4] hover:text-[#37352f]")} title="适应宽度" onClick={handleFitWidth} disabled={!chartUrl}>
+                                        <button className={cn("rounded-md px-2 py-1.5 text-[11px] font-bold transition-all disabled:opacity-50 max-[420px]:px-1.5 max-[360px]:text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 active:scale-[0.97]", Math.abs(zoomLevel - 0.9) < 0.001 ? "bg-[#2383e2] text-white" : "text-[#787774] hover:bg-[#f5f5f4] hover:text-[#37352f]")} title="适应宽度" onClick={handleFitWidth} disabled={!chartUrl}>
                                             <span className="max-[420px]:hidden">适应</span>
                                             <span className="hidden max-[420px]:inline">宽</span>
                                         </button>
@@ -1908,7 +1922,7 @@ export default function Visualization() {
                     {/* Enhanced Meta bar */}
                     {chartMeta?.regression_stats && (
                         <div className="border-t border-[#e9e9e8] px-5 py-4 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
-                        <h4 className="text-[10px] font-black text-[#787774] uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <h4 className="text-[10px] font-black text-[#787774] uppercase tracking-widest mb-3 flex items-center gap-2">
                                 <TrendingUp size={12} className="text-blue-500" />
                                 回归统计数据
                             </h4>
