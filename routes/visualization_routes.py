@@ -84,8 +84,13 @@ def create_chart():
         else:
             raise ValidationException(f"不支持的图表类型: {chart_type}")
         
-        # 将图表转换为HTML格式返回
-        figure_html = result['figure'].to_html(full_html=False, include_plotlyjs='cdn')
+        # 启用自适应布局，让图表跟随容器尺寸
+        result['figure'].update_layout(autosize=True)
+        figure_html = result['figure'].to_html(
+            full_html=False,
+            include_plotlyjs=True,
+            config={'responsive': True}
+        )
         
         return create_success_response({
             'chart_html': figure_html,
@@ -248,12 +253,7 @@ def export_chart():
             filename = f"chart_{chart_type}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.{export_format}"
         
         export_path = visualization_service.export_chart(result['figure'], filename, export_format)
-        
-        return create_success_response({
-            'message': '图表导出成功',
-            'export_path': export_path,
-            'filename': filename
-        })
+        return send_file(export_path, as_attachment=True, download_name=filename)
         
     except Exception as e:
         raise DataException(f"导出图表失败: {str(e)}")

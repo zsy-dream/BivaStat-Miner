@@ -105,12 +105,32 @@ class StatisticalTestService:
         
         # 更新汇总信息
         results['summary']['total_tests'] = len(results['tests'])
-        results['summary']['significant_tests'] = sum(
+        results['summary']['significant_tests'] = int(sum(
             1 for t in results['tests'] 
             if t.get('is_significant', False)
-        )
+        ))
         
-        return results
+        return self._convert_to_json_serializable(results)
+
+    def _convert_to_json_serializable(self, obj: Any) -> Any:
+        """递归将 numpy/pandas 类型转换为 Python 原生类型"""
+        if isinstance(obj, dict):
+            return {str(k): self._convert_to_json_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple, set, np.ndarray)):
+            return [self._convert_to_json_serializable(i) for i in obj]
+        elif isinstance(obj, (np.integer, np.signedinteger, np.unsignedinteger)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, float)):
+            return float(obj)
+        elif isinstance(obj, (np.bool_, bool)):
+            return bool(obj)
+        elif pd.isna(obj):
+            return None
+        elif hasattr(obj, 'to_dict'):
+            return self._convert_to_json_serializable(obj.to_dict())
+        elif hasattr(obj, 'tolist'):
+            return self._convert_to_json_serializable(obj.tolist())
+        return obj
     
     def _mann_whitney_test(
         self,
@@ -346,6 +366,11 @@ class StatisticalTestService:
         results = []
         
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        # 列过多时只取方差最高的前 N 列，防止 O(n^2) 对数爆炸
+        max_spearman_cols = 30
+        if len(numeric_cols) > max_spearman_cols:
+            variances = df[numeric_cols].var().sort_values(ascending=False)
+            numeric_cols = variances.head(max_spearman_cols).index.tolist()
         
         for i, col1 in enumerate(numeric_cols):
             for col2 in numeric_cols[i+1:]:

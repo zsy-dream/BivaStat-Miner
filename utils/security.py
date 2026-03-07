@@ -8,9 +8,9 @@ class SecurityValidator:
     
     # 允许的文件类型和对应的MIME类型
     ALLOWED_EXTENSIONS = {
-        '.csv': ['text/csv', 'text/plain'],
+        '.csv': ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel', 'text/x-csv'],
         '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-        '.xls': ['application/vnd.ms-excel'],
+        '.xls': ['application/vnd.ms-excel', 'application/wps-office.xls'],
         '.json': ['application/json', 'text/plain']
     }
     
@@ -33,21 +33,26 @@ class SecurityValidator:
         if len(filename) > 255:
             return False, "文件名过长"
         
-        # 使用werkzeug的安全文件名处理
-        secure_name = secure_filename(filename)
-        if not secure_name:
-            return False, "文件名包含非法字符"
-        
-        # 检查危险扩展名
         file_ext = os.path.splitext(filename)[1].lower()
         if file_ext in cls.DANGEROUS_EXTENSIONS:
             return False, f"不允许的文件类型: {file_ext}"
+
+        # 使用werkzeug的安全文件名处理
+        secure_name = secure_filename(filename)
+        # 如果全中文，secure_filename会返回空字串，这里做个向下兼容
+        if not secure_name or secure_name == file_ext.strip('.'):
+            import uuid
+            secure_name = f"upload_{uuid.uuid4().hex[:8]}{file_ext}"
+        else:
+            if not secure_name.endswith(file_ext):
+                secure_name += file_ext
         
         return True, secure_name
     
     @classmethod
     def validate_file_type(cls, filename: str, file_content: bytes) -> Tuple[bool, str]:
         """验证文件类型（通过内容检测）"""
+        file_ext = os.path.splitext(filename)[1].lower()
         try:
             # 动态导入magic模块，避免启动时依赖缺失
             import magic
@@ -55,19 +60,29 @@ class SecurityValidator:
             # 使用python-magic库检测文件类型
             mime_type = magic.from_buffer(file_content, mime=True)
             
-            file_ext = os.path.splitext(filename)[1].lower()
             allowed_mimes = cls.ALLOWED_EXTENSIONS.get(file_ext, [])
             
             if not allowed_mimes:
                 return False, f"不支持的文件扩展名: {file_ext}"
             
-            if mime_type not in allowed_mimes:
-                return False, f"文件类型不匹配。期望: {allowed_mimes}, 实际: {mime_type}"
+            # 鉴于 python-magic 可能会对带 BOM 的 CSV 或者空 CSV 产生奇怪的识别，对已知安全类型的文本稍微放行
+            if file_ext in ['.csv', '.json'] and ('text' in mime_type or 'csv' in mime_type or 'json' in mime_type):
+                pass
+            elif mime_type not in allowed_mimes:
+                # 记录一下警告但对已知后缀放行(有时候系统未完整安装libmagic导致结果为 application/octet-stream 等)
+                if mime_type == 'application/octet-stream':
+                    pass
+                else:
+                    return False, f"文件类型不匹配。期望: {allowed_mimes}, 实际: {mime_type}"
             
             return True, mime_type
+        except ImportError:
+            # 如果magic库未安装，回退到扩展名检查
+            if file_ext in cls.ALLOWED_EXTENSIONS:
+                return True, "extension_fallback"
+            return False, f"不支持的文件扩展名: {file_ext}"
         except Exception as e:
-            # 如果magic库不可用，回退到扩展名检查
-            file_ext = os.path.splitext(filename)[1].lower()
+            # 其它异常
             if file_ext in cls.ALLOWED_EXTENSIONS:
                 return True, "extension_fallback"
             return False, f"文件类型验证失败: {str(e)}"

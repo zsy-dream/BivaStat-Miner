@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DataService:
     def __init__(self):
-        self.scaler = StandardScaler()
-        self.min_max_scaler = MinMaxScaler()
+        pass
 
     def clean_data(self, data: pd.DataFrame, options: dict = None) -> pd.DataFrame:
         """
@@ -107,9 +109,11 @@ class DataService:
 
                 elif outlier_method == 'zscore':
                     # 使用 Z-Score 识别异常值
-                    z = np.abs(stats.zscore(series, nan_policy='omit'))
+                    z_raw = np.abs(stats.zscore(series.dropna()))
+                    z = pd.Series(np.nan, index=series.index)
+                    z.loc[series.dropna().index] = z_raw.values
                     if cfg['outlier'] == 'drop':
-                        df = df[z < threshold]
+                        df = df[z.fillna(0) < threshold]
                     else:  # clip：将超出阈值的值截断到边界
                         # 计算在阈值内的最小/最大值
                         valid = series[z < threshold]
@@ -123,12 +127,12 @@ class DataService:
             if df[column].dtype == 'object':
                 try:
                     df[column] = pd.to_numeric(df[column], errors='ignore')
-                except:
+                except Exception:
                     pass
             if df[column].dtype == 'object':
                 try:
                     df[column] = pd.to_datetime(df[column], errors='ignore')
-                except:
+                except Exception:
                     pass
 
         # 移除单一值列
@@ -193,6 +197,16 @@ class DataService:
         return encoded_data
 
     def calculate_data_profile(self, data: pd.DataFrame) -> dict:
+        if data is None or data.empty or len(data.columns) == 0:
+            return {
+                'shape': (0, 0),
+                'columns': [],
+                'dtypes': {},
+                'missing_values': {},
+                'numeric_stats': {},
+                'categorical_stats': {}
+            }
+            
         profile = {
             'shape': data.shape,
             'columns': data.columns.tolist(),
@@ -201,16 +215,27 @@ class DataService:
             'numeric_stats': {},
             'categorical_stats': {}
         }
+        
+        # 仅对存在的数值列进行描述，且确保列数大于 0
         numeric_cols = data.select_dtypes(include=[np.number]).columns
-        if len(numeric_cols) > 0:
-            profile['numeric_stats'] = data[numeric_cols].describe().to_dict()
-        categorical_cols = data.select_dtypes(include=['object']).columns
-        if len(categorical_cols) > 0:
+        if not numeric_cols.empty and len(numeric_cols) > 0:
+            # describe() on empty DF with columns might still fail in some pandas versions if no actual data exists
+            try:
+                profile['numeric_stats'] = data[numeric_cols].describe().to_dict()
+            except Exception as e:
+                logger.warning(f"Error describing numeric columns: {e}")
+                profile['numeric_stats'] = {}
+            
+        categorical_cols = data.select_dtypes(include=['object', 'category', 'string']).columns
+        if not categorical_cols.empty:
             for col in categorical_cols:
-                profile['categorical_stats'][col] = {
-                    'unique_count': data[col].nunique(),
-                    'top_values': data[col].value_counts().head(10).to_dict()
-                }
+                try:
+                    profile['categorical_stats'][col] = {
+                        'unique_count': int(data[col].nunique()),
+                        'top_values': data[col].value_counts().head(10).to_dict()
+                    }
+                except Exception:
+                    continue
         return profile
 
     def validate_data_integrity(self, data: pd.DataFrame) -> dict:
@@ -238,15 +263,18 @@ class DataService:
         return validation_result
 
     def detect_multicollinearity(self, data: pd.DataFrame) -> dict:
-        correlation_matrix = data.corr().abs()
+        numeric_data = data.select_dtypes(include=[np.number])
+        if numeric_data.empty or numeric_data.shape[1] < 2:
+            return {'correlation_matrix': {}, 'high_correlation_pairs': []}
+        correlation_matrix = numeric_data.corr().abs()
         upper_triangle = correlation_matrix.where(
             np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
         )
         high_corr_pairs = [
-            (row, col, correlation_matrix.loc[row, col])
+            (row, col, float(correlation_matrix.loc[row, col]))
             for row in correlation_matrix.columns
             for col in correlation_matrix.columns
-            if upper_triangle.loc[row, col] > 0.8
+            if pd.notna(upper_triangle.loc[row, col]) and upper_triangle.loc[row, col] > 0.8
         ]
         return {
             'correlation_matrix': correlation_matrix.to_dict(),

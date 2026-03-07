@@ -9,6 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from typing import Dict, Any, List, Optional, Tuple
 import logging
+from pandas.api.types import is_numeric_dtype
 from utils.error_handler import DataException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,73 @@ class VisualizationService:
     def __init__(self):
         self.color_palette = px.colors.qualitative.Set3
         self.default_theme = 'plotly_white'
+        self.font_family = "Microsoft YaHei, SimHei, Arial, sans-serif"
+
+    def _apply_standard_layout(
+        self,
+        fig,
+        title: str,
+        config: Dict[str, Any],
+        *,
+        xaxis_title: Optional[str] = None,
+        yaxis_title: Optional[str] = None,
+        showlegend: bool = True
+    ) -> None:
+        """统一图表布局样式。"""
+        fig.update_layout(
+            title=dict(
+                text=title,
+                x=0.02,
+                xanchor='left',
+                font=dict(size=18, family=self.font_family, color='#1f2937')
+            ),
+            width=config.get('width', 900),
+            height=config.get('height', 620),
+            template=self.default_theme,
+            showlegend=showlegend,
+            font=dict(family=self.font_family, size=12, color='#374151'),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=70, r=40, t=70, b=70),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                bgcolor="rgba(255,255,255,0.85)",
+                bordercolor="rgba(203,213,225,0.8)",
+                borderwidth=1,
+                font=dict(size=11, family=self.font_family)
+            )
+        )
+
+        fig.update_xaxes(
+            title_text=xaxis_title,
+            showgrid=True,
+            gridcolor='rgba(226,232,240,0.7)',
+            zeroline=False,
+            linecolor='rgba(148,163,184,0.8)',
+            tickfont=dict(family=self.font_family, size=11)
+        )
+        fig.update_yaxes(
+            title_text=yaxis_title,
+            showgrid=True,
+            gridcolor='rgba(226,232,240,0.7)',
+            zeroline=False,
+            linecolor='rgba(148,163,184,0.8)',
+            tickfont=dict(family=self.font_family, size=11)
+        )
+
+    def _format_column_label(self, column: Any) -> str:
+        """将数据列名格式化为更适合图表展示的标签。"""
+        label = str(column).strip() if column is not None else ''
+        if not label:
+            return '未命名字段'
+        if label.lower().startswith('unnamed:'):
+            suffix = label.split(':', 1)[1].strip() if ':' in label else ''
+            return f"索引列 {suffix}" if suffix else "索引列"
+        return label
         
     def create_correlation_heatmap(self, df: pd.DataFrame, config: Dict[str, Any] = None) -> Dict[str, Any]:
         """创建相关性热力图"""
@@ -45,12 +113,15 @@ class VisualizationService:
                 title=f"变量相关性热力图 ({method.capitalize()}相关系数)",
                 template=self.default_theme
             )
-            
+
             # 更新布局
-            fig.update_layout(
-                width=config.get('width', 800),
-                height=config.get('height', 600),
-                title_font_size=16
+            self._apply_standard_layout(
+                fig,
+                f"变量相关性热力图 ({method.capitalize()}相关系数)",
+                config,
+                xaxis_title="变量",
+                yaxis_title="变量",
+                showlegend=False
             )
             
             return {
@@ -74,69 +145,82 @@ class VisualizationService:
                 raise ValidationException(f"指定的列不存在: {x_col}, {y_col}")
             
             # 检查数据类型
-            if not (np.issubdtype(df[x_col].dtype, np.number) and np.issubdtype(df[y_col].dtype, np.number)):
+            if not (is_numeric_dtype(df[x_col]) and is_numeric_dtype(df[y_col])):
                 raise ValidationException("散点图需要数值型数据")
+
+            plot_df = df[[x_col, y_col]].dropna().copy()
+            if plot_df.empty:
+                raise ValidationException("散点图缺少可用的数值数据")
             
             # 创建散点图
             fig = px.scatter(
-                df,
+                plot_df,
                 x=x_col,
                 y=y_col,
-                title=f"{x_col} vs {y_col} 散点图",
+                title=f"{x_col} 与 {y_col} 的关系散点图",
                 template=self.default_theme,
-                color_discrete_sequence=self.color_palette
+                color_discrete_sequence=[self.color_palette[0]]
             )
             
             # 添加趋势线
-            if config.get('add_trendline', False):
-                # 计算趋势线
-                slope, intercept, r_value, p_value, std_err = stats.linregress(df[x_col].dropna(), df[y_col].dropna())
-                trend_line = slope * df[x_col] + intercept
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=df[x_col],
-                        y=trend_line,
-                        mode='lines',
-                        name=f'趋势线 (R²={r_value**2:.3f})',
-                        line=dict(color='red', dash='dash')
-                    )
-                )
-            
-            # 添加回归方程信息
-            if config.get('show_regression_info', False):
-                slope, intercept, r_value, p_value, std_err = stats.linregress(df[x_col].dropna(), df[y_col].dropna())
-                equation = f'y = {slope:.3f}x + {intercept:.3f}'
-                r_squared = f'R² = {r_value**2:.3f}'
-                p_val = f'p-value = {p_value:.6f}'
-                
-                fig.add_annotation(
-                    text=f"{equation}<br>{r_squared}<br>{p_val}",
-                    xref="paper", yref="paper",
-                    x=0.02, y=0.98,
-                    showarrow=False,
-                    bgcolor="white",
-                    bordercolor="black",
-                    borderwidth=1
-                )
-            
-            # 更新布局
-            fig.update_layout(
-                width=config.get('width', 800),
-                height=config.get('height', 600),
-                title_font_size=16
-            )
-            
-            return {
-                'figure': fig,
-                'correlation': df[x_col].corr(df[y_col]),
-                'chart_type': 'scatter',
-                'regression_stats': {
+            if config.get('add_trendline', False) or config.get('show_regression_info', False):
+                slope, intercept, r_value, p_value, std_err = stats.linregress(plot_df[x_col], plot_df[y_col])
+                regression_stats = {
                     'slope': slope,
                     'intercept': intercept,
                     'r_squared': r_value**2,
                     'p_value': p_value
-                } if config.get('show_regression_info', False) else None
+                }
+
+            if config.get('add_trendline', False) and regression_stats is not None:
+                trend_x = np.linspace(plot_df[x_col].min(), plot_df[x_col].max(), 100)
+                trend_line = slope * trend_x + intercept
+                
+                fig.add_trace(
+                    go.Scatter(
+                        x=trend_x,
+                        y=trend_line,
+                        mode='lines',
+                        name=f'趋势线（R² = {r_value**2:.3f}）',
+                        line=dict(color='#ef4444', dash='dash', width=2.2)
+                    )
+                )
+            
+            # 添加回归方程信息
+            if config.get('show_regression_info', False) and regression_stats is not None:
+                sign = '+' if intercept >= 0 else '-'
+                equation = f"y = {slope:.3f}x {sign} {abs(intercept):.3f}"
+                r_squared = f"R² = {r_value**2:.3f}"
+                p_val = f"p = {p_value:.4g}"
+                
+                fig.add_annotation(
+                    text=f"<b>线性拟合结果</b><br>{equation}<br>{r_squared}<br>{p_val}",
+                    xref="paper", yref="paper",
+                    x=0.985, y=0.03,
+                    xanchor="right", yanchor="bottom",
+                    showarrow=False,
+                    align="left",
+                    bgcolor="rgba(255,255,255,0.96)",
+                    bordercolor="#cbd5e1",
+                    borderwidth=1,
+                    borderpad=8,
+                    font=dict(size=11, family=self.font_family, color="#334155")
+                )
+            
+            self._apply_standard_layout(
+                fig,
+                f"{x_col} 与 {y_col} 的关系散点图",
+                config,
+                xaxis_title=x_col,
+                yaxis_title=y_col,
+                showlegend=config.get('add_trendline', False)
+            )
+            
+            return {
+                'figure': fig,
+                'correlation': plot_df[x_col].corr(plot_df[y_col]),
+                'chart_type': 'scatter',
+                'regression_stats': regression_stats
             }
             
         except Exception as e:
@@ -152,23 +236,29 @@ class VisualizationService:
             if column not in df.columns:
                 raise ValidationException(f"指定的列不存在: {column}")
             
-            if not np.issubdtype(df[column].dtype, np.number):
+            if not is_numeric_dtype(df[column]):
                 raise ValidationException("分布图需要数值型数据")
+
+            display_column = self._format_column_label(column)
+            series = df[column].dropna()
+            if series.empty:
+                raise ValidationException("分布图缺少可用的数值数据")
             
             # 创建子图
             fig = make_subplots(
                 rows=2, cols=1,
-                subplot_titles=(f"{column} 直方图", f"{column} 箱线图"),
-                vertical_spacing=0.1
+                subplot_titles=(f"{display_column} · 频数分布", f"{display_column} · 箱线分布"),
+                vertical_spacing=0.14
             )
             
             # 直方图
             fig.add_trace(
                 go.Histogram(
-                    x=df[column],
+                    x=series,
                     nbinsx=config.get('bins', 30),
-                    name='分布',
-                    marker_color=config.get('color', 'lightblue')
+                    name='频数分布',
+                    marker_color=config.get('color', 'rgba(125, 211, 252, 0.78)'),
+                    marker_line=dict(width=0.6, color='rgba(14, 116, 144, 0.18)')
                 ),
                 row=1, col=1
             )
@@ -176,49 +266,71 @@ class VisualizationService:
             # 箱线图
             fig.add_trace(
                 go.Box(
-                    y=df[column],
-                    name='箱线图',
-                    marker_color=config.get('color', 'lightgreen')
+                    y=series,
+                    name='箱线分布',
+                    marker_color='rgba(134, 239, 172, 0.88)',
+                    line=dict(color='rgba(22, 163, 74, 0.8)')
                 ),
                 row=2, col=1
             )
             
             # 添加统计信息
             stats_info = {
-                'mean': df[column].mean(),
-                'median': df[column].median(),
-                'std': df[column].std(),
-                'min': df[column].min(),
-                'max': df[column].max(),
-                'q25': df[column].quantile(0.25),
-                'q75': df[column].quantile(0.75),
-                'skewness': stats.skew(df[column].dropna()),
-                'kurtosis': stats.kurtosis(df[column].dropna())
+                'mean': series.mean(),
+                'median': series.median(),
+                'std': series.std(),
+                'min': series.min(),
+                'max': series.max(),
+                'q25': series.quantile(0.25),
+                'q75': series.quantile(0.75),
+                'skewness': stats.skew(series),
+                'kurtosis': stats.kurtosis(series)
             }
             
             # 在直方图上添加统计线
             fig.add_vline(
                 x=stats_info['mean'],
                 line_dash="dash",
-                line_color="red",
-                annotation_text=f"均值: {stats_info['mean']:.2f}"
+                line_color="#ef4444",
+                line_width=2,
+                row=1,
+                col=1
             )
             fig.add_vline(
                 x=stats_info['median'],
                 line_dash="dash",
-                line_color="blue",
-                annotation_text=f"中位数: {stats_info['median']:.2f}"
+                line_color="#2563eb",
+                line_width=2,
+                row=1,
+                col=1
+            )
+
+            fig.add_annotation(
+                xref="paper",
+                yref="paper",
+                x=0.985,
+                y=0.965,
+                xanchor="right",
+                yanchor="top",
+                showarrow=False,
+                align="left",
+                text=(
+                    f"<b>统计摘要</b><br>"
+                    f"均值 = {stats_info['mean']:.2f}<br>"
+                    f"中位数 = {stats_info['median']:.2f}<br>"
+                    f"标准差 = {stats_info['std']:.2f}"
+                ),
+                bgcolor="rgba(255,255,255,0.96)",
+                bordercolor="#cbd5e1",
+                borderwidth=1,
+                borderpad=8,
+                font=dict(size=11, family=self.font_family, color="#334155")
             )
             
             # 更新布局
-            fig.update_layout(
-                title=f"{column} 分布分析",
-                template=self.default_theme,
-                width=config.get('width', 800),
-                height=config.get('height', 600),
-                title_font_size=16,
-                showlegend=False
-            )
+            self._apply_standard_layout(fig, f"{display_column} 分布分析", config, xaxis_title=display_column, showlegend=False)
+            fig.update_yaxes(title_text='频数', row=1, col=1)
+            fig.update_yaxes(title_text='取值范围', row=2, col=1)
             
             return {
                 'figure': fig,
@@ -242,7 +354,7 @@ class VisualizationService:
             if group_col and group_col not in df.columns:
                 raise ValidationException(f"指定的分组列不存在: {group_col}")
             
-            if not np.issubdtype(df[value_col].dtype, np.number):
+            if not is_numeric_dtype(df[value_col]):
                 raise ValidationException("箱线图需要数值型数据")
             
             # 创建箱线图
@@ -307,21 +419,34 @@ class VisualizationService:
                     raise ValidationException(f"指定的数值列不存在: {y_col}")
                 
                 # 如果x列是分类变量，按y列的均值聚合
-                if not np.issubdtype(df[x_col].dtype, np.number):
+                if not is_numeric_dtype(df[y_col]):
+                    raise ValidationException("分组柱状图的纵轴必须是数值型数据")
+
+                if not is_numeric_dtype(df[x_col]):
                     # 添加空值检查防止 NoneType groups 错误
                     if df is None or df.empty:
                         raise ValidationException("数据为空，无法生成图表")
                     if x_col not in df.columns or y_col not in df.columns:
                         raise ValidationException(f"指定的列不存在: {x_col}, {y_col}")
-                    plot_df = df.groupby(x_col)[y_col].mean().reset_index()
-                    title = f"{y_col} 按 {x_col} 分组的均值"
+                    group_df = df[[x_col, y_col]].dropna().copy()
+                    plot_df = (
+                        group_df.groupby(x_col, dropna=False)[y_col]
+                        .mean()
+                        .sort_values(ascending=False)
+                        .head(config.get('top_n', 20))
+                        .reset_index()
+                    )
+                    title = f"{y_col} 按 {x_col} 分组的均值对比"
                 else:
                     if df is None or df.empty:
                         raise ValidationException("数据为空，无法生成图表")
                     if x_col not in df.columns or y_col not in df.columns:
                         raise ValidationException(f"指定的列不存在: {x_col}, {y_col}")
-                    plot_df = df[[x_col, y_col]].sort_values(y_col, ascending=False).head(config.get('top_n', 20))
-                    title = f"{x_col} vs {y_col}"
+                    numeric_df = df[[x_col, y_col]].dropna().copy()
+                    if numeric_df.empty:
+                        raise ValidationException("柱状图缺少可用数据")
+                    plot_df = numeric_df.sort_values(y_col, ascending=False).head(config.get('top_n', 20))
+                    title = f"{x_col} 与 {y_col} 对比"
             
             # 创建柱状图
             fig = px.bar(
@@ -330,20 +455,26 @@ class VisualizationService:
                 y=y_col,
                 title=title,
                 template=self.default_theme,
-                color_discrete_sequence=self.color_palette
+                color_discrete_sequence=[self.color_palette[1]]
             )
             
             # 添加数值标签
             if config.get('show_values', True):
-                fig.update_traces(texttemplate='%{y:.2f}', textposition='outside')
+                fig.update_traces(
+                    texttemplate='%{y:.2f}',
+                    textposition='outside',
+                    marker=dict(line=dict(width=0.6, color='rgba(15,23,42,0.18)'))
+                )
             
-            # 更新布局
-            fig.update_layout(
-                width=config.get('width', 800),
-                height=config.get('height', 600),
-                title_font_size=16,
-                xaxis_tickangle=config.get('xaxis_angle', -45)
+            self._apply_standard_layout(
+                fig,
+                title,
+                config,
+                xaxis_title=x_col,
+                yaxis_title=y_col,
+                showlegend=False
             )
+            fig.update_xaxes(tickangle=config.get('xaxis_angle', -35))
             
             return {
                 'figure': fig,
@@ -527,8 +658,10 @@ class VisualizationService:
             
             # 更新布局
             fig.update_layout(
-                title="关联规则网络图",
-                titlefont_size=16,
+                title=dict(
+                    text="关联规则网络图",
+                    font=dict(size=16)
+                ),
                 showlegend=False,
                 hovermode='closest',
                 margin=dict(b=20,l=5,r=5,t=40),

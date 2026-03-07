@@ -16,22 +16,23 @@ class EnhancedPreprocessingService:
     """增强的数据预处理服务，提供全面的数据清洗和转换功能"""
     
     def __init__(self):
-        self.scalers = {
-            'standard': StandardScaler(),
-            'minmax': MinMaxScaler(),
-            'robust': RobustScaler(),
-            'power': PowerTransformer(method='yeo-johnson')
+        # 工厂方法，每次调用生成新实例，避免多次 fit 复用旧状态
+        self._scaler_factories = {
+            'standard': lambda: StandardScaler(),
+            'minmax': lambda: MinMaxScaler(),
+            'robust': lambda: RobustScaler(),
+            'power': lambda: PowerTransformer(method='yeo-johnson')
         }
-        self.imputers = {
-            'mean': SimpleImputer(strategy='mean'),
-            'median': SimpleImputer(strategy='median'),
-            'mode': SimpleImputer(strategy='most_frequent'),
-            'constant': SimpleImputer(strategy='constant', fill_value=0),
-            'knn': KNNImputer(n_neighbors=5)
+        self._imputer_factories = {
+            'mean': lambda: SimpleImputer(strategy='mean'),
+            'median': lambda: SimpleImputer(strategy='median'),
+            'mode': lambda: SimpleImputer(strategy='most_frequent'),
+            'constant': lambda: SimpleImputer(strategy='constant', fill_value=0),
+            'knn': lambda: KNNImputer(n_neighbors=5)
         }
     
     def comprehensive_preprocessing(self, df: pd.DataFrame, config: Dict[str, Any]) -> Dict[str, Any]:
-        """综合预处理流程"""
+        """综合预处理流程（兼容前端参数名）"""
         try:
             result = {
                 'original_shape': df.shape,
@@ -40,56 +41,57 @@ class EnhancedPreprocessingService:
                 'final_df': df.copy()
             }
             
-            # 1. 数据质量评估
-            quality_report = self.assess_data_quality(df)
-            result['quality_report'] = quality_report
-            result['processing_log'].append("完成数据质量评估")
-            
-            # 2. 缺失值处理
-            if config.get('missing_value', {}).get('enabled', True):
-                result['final_df'] = self.handle_missing_values(
-                    result['final_df'], config.get('missing_value', {})
-                )
+            # --- 参数名映射与补全 ---
+            # 1. 缺失值
+            mv_cfg = config.get('missing_values', config.get('missing_value', {}))
+            if mv_cfg and mv_cfg.get('strategy', mv_cfg.get('method', 'none')) != 'none':
+                # 兼容 strategy -> method
+                if 'strategy' in mv_cfg:
+                    mv_cfg['method'] = mv_cfg['strategy']
+                mv_cfg['enabled'] = True
+                result['final_df'] = self.handle_missing_values(result['final_df'], mv_cfg)
                 result['steps_applied'].append('missing_value_handling')
-                result['processing_log'].append("完成缺失值处理")
+                result['processing_log'].append(f"完成缺失值处理 ({mv_cfg['method']})")
             
-            # 3. 异常值检测与处理
-            if config.get('outlier_detection', {}).get('enabled', True):
-                result['final_df'] = self.handle_outliers(
-                    result['final_df'], config.get('outlier_detection', {})
-                )
+            # 2. 异常值
+            ol_cfg = config.get('outliers', config.get('outlier_detection', {}))
+            if ol_cfg and ol_cfg.get('method', 'none') != 'none':
+                ol_cfg['enabled'] = True
+                result['final_df'] = self.handle_outliers(result['final_df'], ol_cfg)
                 result['steps_applied'].append('outlier_handling')
-                result['processing_log'].append("完成异常值处理")
-            
-            # 4. 数据标准化/归一化
-            if config.get('normalization', {}).get('enabled', False):
-                result['final_df'] = self.normalize_data(
-                    result['final_df'], config.get('normalization', {})
-                )
+                result['processing_log'].append(f"完成异常值处理 ({ol_cfg['method']})")
+                
+            # 3. 标准化
+            nm_cfg = config.get('normalize', config.get('normalization', {}))
+            if nm_cfg and nm_cfg.get('method', 'none') != 'none':
+                nm_cfg['enabled'] = True
+                result['final_df'] = self.normalize_data(result['final_df'], nm_cfg)
                 result['steps_applied'].append('normalization')
-                result['processing_log'].append("完成数据标准化")
+                result['processing_log'].append(f"完成数据标准化 ({nm_cfg['method']})")
+
+            # 4. 特征编码
+            enc_cfg = config.get('encode', config.get('encoding', {}))
+            if enc_cfg and enc_cfg.get('method', 'none') != 'none':
+                enc_method = enc_cfg.get('method', 'auto')
+                if enc_method == 'auto':
+                    result['final_df'] = self._auto_encode_categorical_features(result['final_df'], enc_cfg)
+                    result['processing_log'].append("完成特征编码 (auto: 低基数 One-Hot / 高基数 Label)")
+                else:
+                    result['final_df'] = self.encode_categorical_features(result['final_df'], enc_cfg)
+                    result['processing_log'].append(f"完成特征编码 ({enc_method})")
+                result['steps_applied'].append('encoding')
             
-            # 5. 特征编码
-            if config.get('encoding', {}).get('enabled', True):
-                result['final_df'] = self.encode_categorical_features(
-                    result['final_df'], config.get('encoding', {})
-                )
-                result['steps_applied'].append('feature_encoding')
-                result['processing_log'].append("完成特征编码")
-            
-            # 6. 特征选择
-            if config.get('feature_selection', {}).get('enabled', False):
-                result['final_df'] = self.select_features(
-                    result['final_df'], config.get('feature_selection', {})
-                )
+            # 5. 特征选择
+            fs_cfg = config.get('feature_selection', {})
+            if fs_cfg.get('enabled', False):
+                result['final_df'] = self.select_features(result['final_df'], fs_cfg)
                 result['steps_applied'].append('feature_selection')
                 result['processing_log'].append("完成特征选择")
             
-            # 7. 降维处理
-            if config.get('dimensionality_reduction', {}).get('enabled', False):
-                result['final_df'] = self.reduce_dimensions(
-                    result['final_df'], config.get('dimensionality_reduction', {})
-                )
+            # 6. 降维处理
+            dr_cfg = config.get('dimensionality_reduction', {})
+            if dr_cfg.get('enabled', False):
+                result['final_df'] = self.reduce_dimensions(result['final_df'], dr_cfg)
                 result['steps_applied'].append('dimensionality_reduction')
                 result['processing_log'].append("完成降维处理")
             
@@ -101,31 +103,54 @@ class EnhancedPreprocessingService:
         except Exception as e:
             logger.error(f"综合预处理失败: {str(e)}")
             raise DataException(f"综合预处理失败: {str(e)}")
+
+    def _auto_encode_categorical_features(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+        """自动编码：低基数做 One-Hot，高基数做 Label 编码"""
+        result_df = df.copy()
+        columns = config.get('columns', []) or result_df.select_dtypes(include=['object', 'category']).columns.tolist()
+        threshold = int(config.get('onehot_threshold', 12) or 12)
+
+        for col in columns:
+            if col not in result_df.columns:
+                continue
+            unique_count = int(result_df[col].nunique(dropna=True))
+            if unique_count <= threshold:
+                dummies = pd.get_dummies(result_df[col], prefix=col, drop_first=config.get('drop_first', False))
+                result_df = pd.concat([result_df.drop(col, axis=1), dummies], axis=1)
+            else:
+                result_df[col] = pd.Categorical(result_df[col]).codes
+        return result_df
     
     def assess_data_quality(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """评估数据质量"""
+        """评估数据质量并计算评分"""
         try:
             quality_report = {
                 'basic_info': {
                     'shape': df.shape,
                     'memory_usage_mb': df.memory_usage(deep=True).sum() / (1024 * 1024),
-                    'dtypes': df.dtypes.value_counts().to_dict()
+                    'dtypes': {str(k): int(v) for k, v in df.dtypes.value_counts().to_dict().items()}
                 },
                 'missing_values': {},
                 'duplicates': {},
                 'outliers': {},
-                'data_consistency': {}
+                'data_consistency': {},
+                'overall_score': 100.0
             }
             
             # 缺失值分析
             missing_analysis = df.isnull().sum()
+            total_missing = int(missing_analysis.sum())
             missing_percentage = (missing_analysis / len(df)) * 100
             quality_report['missing_values'] = {
-                'total_missing': missing_analysis.sum(),
-                'missing_percentage_by_column': missing_percentage.to_dict(),
+                'total_missing': total_missing,
+                'missing_percentage_by_column': {k: float(v) for k, v in missing_percentage.to_dict().items()},
                 'columns_with_missing': missing_analysis[missing_analysis > 0].index.tolist(),
                 'high_missing_columns': missing_percentage[missing_percentage > 50].index.tolist()
             }
+            
+            # 扣分：缺失值 (每1%扣2分)
+            avg_missing_rate = (total_missing / (df.shape[0] * df.shape[1])) if df.size > 0 else 0
+            quality_report['overall_score'] -= (avg_missing_rate * 200)
             
             # 重复值分析
             duplicates_count = df.duplicated().sum()
@@ -224,11 +249,11 @@ class EnhancedPreprocessingService:
             
             elif method == 'forward_fill':
                 # 前向填充
-                result_df = result_df.fillna(method='ffill')
+                result_df = result_df.ffill()
             
             elif method == 'backward_fill':
                 # 后向填充
-                result_df = result_df.fillna(method='bfill')
+                result_df = result_df.bfill()
             
             return result_df
             
@@ -301,8 +326,8 @@ class EnhancedPreprocessingService:
             if not columns:
                 columns = result_df.select_dtypes(include=[np.number]).columns.tolist()
             
-            if method in self.scalers:
-                scaler = self.scalers[method]
+            if method in self._scaler_factories:
+                scaler = self._scaler_factories[method]()
                 result_df[columns] = scaler.fit_transform(result_df[columns])
             else:
                 raise ValidationException(f"不支持的标准化方法: {method}")

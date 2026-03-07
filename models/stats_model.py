@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 from scipy import stats
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def perform_test(df: pd.DataFrame, test_type: str = 'chi2'):
@@ -15,20 +18,14 @@ def perform_test(df: pd.DataFrame, test_type: str = 'chi2'):
     }
 
     try:
-        # 只选取数值型列进行简单演示
         numeric_cols = df.select_dtypes(include=[np.number]).columns
 
         if len(numeric_cols) >= 2:
-            col1 = df[numeric_cols[0]]
-            col2 = df[numeric_cols[1]]
-
-            # 去除空值
             valid_data = df[[numeric_cols[0], numeric_cols[1]]].dropna()
             c1 = valid_data[numeric_cols[0]]
             c2 = valid_data[numeric_cols[1]]
 
             if test_type == 'chi2':
-                # 简单的卡方检验逻辑 (这里为了演示，将数值离散化)
                 contingency = pd.crosstab(c1 > c1.mean(), c2 > c2.mean())
                 if contingency.size > 0:
                     stat, p, _, _ = stats.chi2_contingency(contingency)
@@ -39,10 +36,8 @@ def perform_test(df: pd.DataFrame, test_type: str = 'chi2'):
                         'conclusion': '显著相关' if p < 0.05 else '无显著相关'
                     }
 
-            # 你可以根据需要扩展 t-test 等其他检验
-
     except Exception as e:
-        print(f"Stats Error: {e}")
+        logger.warning(f"Stats Error: {e}")
 
     return result
 
@@ -65,7 +60,7 @@ def calculate_ci(df: pd.DataFrame, confidence: float = 0.95):
                     'lower': round(interval[0], 2),
                     'upper': round(interval[1], 2)
                 }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"置信区间计算失败: {e}")
 
     return ci_results

@@ -107,11 +107,13 @@ class DataModel:
 
             elif file_ext in ['.xlsx', '.xls']:
                 try:
-                    # 优化Excel读取
+                    # 读取 Excel，将常见占位空值统一转为 NaN，避免 '--'/'-' 等字符串触发类型转换错误
+                    _na_vals = ['--', '-', 'N/A', 'NA', 'n/a', 'na', 'NULL', 'null', 'None', '']
                     data = pd.read_excel(
-                        path, 
+                        path,
                         engine='openpyxl' if file_ext == '.xlsx' else 'xlrd',
-                        dtype_backend='pyarrow'  # 更高效的数据类型
+                        na_values=_na_vals,
+                        keep_default_na=True,
                     )
                 except ImportError as ie:
                     raise DataException(
@@ -139,20 +141,13 @@ class DataModel:
                 # 去除全空的列
                 data = data.dropna(how='all', axis=1)
                 
-                # 去除完全重复的行
-                data = data.drop_duplicates()
-                
-                # 仅对文本列填充空字符串，保留数值列的 NaN，避免后续数值计算/转换报错
-                object_cols = data.select_dtypes(include=['object', 'string']).columns
-                if len(object_cols) > 0:
-                    data[object_cols] = data[object_cols].fillna('')
-                
                 logger.info(f"数据加载完成: {path}, 原始形状: {original_shape}, 清理后: {data.shape}")
                 
                 # 更新缓存
                 with self._lock:
-                    self.data_cache[path] = (data, time.time())
-                    self._cache_access_times[path] = time.time()
+                    now = time.time()
+                    self.data_cache[path] = (data, now)
+                    self._cache_access_times[path] = now
                     self.current_data = data
                     self.current_path = path
                     self._cleanup_cache()
@@ -172,12 +167,25 @@ class DataModel:
         with self._lock:
             if path in self.data_cache:
                 data, timestamp = self.data_cache[path]
-                self._cache_access_times[path] = time.time()  # 更新访问时间
+                self._cache_access_times[path] = time.time()
                 self.current_data = data
                 self.current_path = path
                 logger.debug(f"从缓存获取数据: {path}")
                 return data
-        
+
+        # 如果文件不存在于磁盘（虚拟路径，如 _enhanced / .cleaned），回退到全局状态
+        if not os.path.exists(path):
+            from utils.global_state import global_state
+            gs_data, gs_path = global_state.get_current_data()
+            if gs_data is not None and gs_path == path:
+                logger.debug(f"从 global_state 回退获取数据: {path}")
+                return gs_data
+            # 路径不匹配但仍有当前数据，先返回当前数据而不是崩溃
+            if gs_data is not None:
+                logger.warning(f"虚拟路径 {path} 不匹配 global_state 路径 {gs_path}，回退使用当前数据")
+                return gs_data
+            raise DataException(f"找不到数据: {path}（虚拟路径且无缓存）")
+
         return self.load_data(path)
 
     def validate_data(self, data: pd.DataFrame) -> bool:

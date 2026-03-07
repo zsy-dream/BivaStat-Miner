@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app, send_file
 import os
 import uuid
 import time
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import logging
@@ -20,11 +21,21 @@ from utils.error_handler import (
     ValidationException, FileException, DataException, SecurityException, ResourceNotFoundException,
     log_operation
 )
+from utils.json_utils import to_json_compatible
 
 # 设置日志
 logger = logging.getLogger(__name__)
 
 data_bp = Blueprint('data_routes', __name__)
+
+@data_bp.route('/clear_current', methods=['POST'])
+@handle_app_exception
+def clear_current():
+    """清除当前数据集会话"""
+    global_state.clear()
+    data_model_instance.current_data = None
+    data_model_instance.current_path = None
+    return create_success_response({"message": "会话已重置"})
 
 @data_bp.route('/current', methods=['GET'])
 @handle_app_exception
@@ -43,7 +54,7 @@ def get_current():
         'columns': list(current_data.columns),
         'filename': os.path.basename(current_path),
         'path': current_path,
-        'preview': current_data.head(10).fillna('').to_dict(orient='records')
+        'preview': current_data.head(300).fillna('').to_dict(orient='records')
     })
 
 
@@ -156,7 +167,7 @@ def upload_data():
             'filename': secure_name,
             'original_filename': file.filename,
             'path': file_path,
-            'preview': df.head().fillna('').to_dict(orient='records')
+            'preview': df.head(300).fillna('').to_dict(orient='records')
         })
 
     except Exception as e:
@@ -168,199 +179,406 @@ def upload_data():
 
 
 @data_bp.route('/preview_data', methods=['POST'])
+@handle_app_exception
 def preview_data():
     """获取数据预览信息（列名、缺失值、类型等）"""
-    try:
-        data = request.json
-        file_path = data.get('file_path')
-        if not file_path:
-            return jsonify({'error': '未提供文件路径'}), 400
-            
-        df = get_data(file_path)
+    data = request.json
+    file_path = data.get('file_path')
+    if not file_path:
+        raise ValidationException('未提供文件路径')
         
-        # 构建列信息
-        columns_info = []
-        for col in df.columns:
-            dtype = str(df[col].dtype)
-            missing = int(df[col].isnull().sum())
-            unique = int(df[col].nunique())
-            columns_info.append({
-                'name': col,
-                'type': dtype,
-                'missing': missing,
-                'unique': unique
-            })
-            
-        return jsonify({
-            'success': True,
-            'columns_info': columns_info,
-            'shape': df.shape,
-            'preview': df.head(10).fillna('NaN').to_dict(orient='records')
+    df = get_data(file_path)
+    
+    # 构建列信息
+    columns_info = []
+    for col in df.columns:
+        dtype = str(df[col].dtype)
+        missing = int(df[col].isnull().sum())
+        unique = int(df[col].nunique())
+        columns_info.append({
+            'name': col,
+            'type': dtype,
+            'missing': missing,
+            'unique': unique
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        
+    return create_success_response({
+        'columns_info': columns_info,
+        'shape': df.shape,
+        'preview': df.head(10).fillna('NaN').to_dict(orient='records')
+    })
 
 
 @data_bp.route('/preprocess_data', methods=['POST'])
+@handle_app_exception
 def preprocess_data():
     """执行数据清洗与预处理（缺失值、异常值、标准化、变量变换等）"""
+    req_data = request.json
+    file_path = req_data.get('file_path')
+    options = req_data.get('options', {})
+    
+    if not file_path:
+        raise ValidationException('未提供文件路径')
+        
+    # 1. 获取原始数据（支持从缓存读取 cleaned_path）
+    df = get_data(file_path)
+    
+    # 2. 执行清洗（缺失值 + 异常值）
+    cleaned_df = data_service.clean_data(df, options)
+
+    # 3. 可选标准化（Z-score / Min-Max）
+    normalize_method = options.get('normalize_method', 'none')
+    if normalize_method in ('standard', 'minmax'):
+        cleaned_df = data_service.standardize_data(
+            cleaned_df,
+            method='standard' if normalize_method == 'standard' else 'minmax'
+        )
+
+    # 4. 可选变量变换（对数 / Box-Cox）
+    transform_method = options.get('transform_method', 'none')
+    if transform_method in ('log', 'boxcox'):
+        cleaned_df = data_service.transform_data(cleaned_df, method=transform_method)
+    
+    # 5. 更新缓存（或保存为新文件，这里简化为更新缓存）
+    cleaned_path = file_path + ".cleaned"
+    # 关键修复：DataModel.data_cache 的 value 结构是 (df, timestamp)，不能直接塞 DataFrame
+    now_ts = time.time()
     try:
-        req_data = request.json
-        file_path = req_data.get('file_path')
-        options = req_data.get('options', {})
-        
-        if not file_path:
-            return jsonify({'error': '未提供文件路径'}), 400
-            
-        # 1. 获取原始数据（支持从缓存读取 cleaned_path）
-        df = get_data(file_path)
-        
-        # 2. 执行清洗（缺失值 + 异常值）
-        cleaned_df = data_service.clean_data(df, options)
-
-        # 3. 可选标准化（Z-score / Min-Max）
-        normalize_method = options.get('normalize_method', 'none')
-        if normalize_method in ('standard', 'minmax'):
-            cleaned_df = data_service.standardize_data(
-                cleaned_df,
-                method='standard' if normalize_method == 'standard' else 'minmax'
-            )
-
-        # 4. 可选变量变换（对数 / Box-Cox）
-        transform_method = options.get('transform_method', 'none')
-        if transform_method in ('log', 'boxcox'):
-            cleaned_df = data_service.transform_data(cleaned_df, method=transform_method)
-        
-        # 5. 更新缓存（或保存为新文件，这里简化为更新缓存）
-        # 为了不覆盖原始数据，建议保存为新文件，但为了 demo 方便，我们更新缓存 key 为 cleaned_path
-        cleaned_path = file_path + ".cleaned" # 虚拟路径
-        from models.data_model import data_model_instance
-        # 关键修复：DataModel.data_cache 的 value 结构是 (df, timestamp)，不能直接塞 DataFrame
-        now_ts = time.time()
-        try:
-            lock = getattr(data_model_instance, "_lock", None)
-            if lock:
-                lock.acquire()
-            data_model_instance.data_cache[cleaned_path] = (cleaned_df, now_ts)
-            if hasattr(data_model_instance, "_cache_access_times") and isinstance(getattr(data_model_instance, "_cache_access_times"), dict):
-                data_model_instance._cache_access_times[cleaned_path] = now_ts
-            # 保持缓存约束（LRU/内存上限）
-            if hasattr(data_model_instance, "_cleanup_cache"):
-                data_model_instance._cleanup_cache()
-        finally:
-            if 'lock' in locals() and lock:
-                lock.release()
-        data_model_instance.current_data = cleaned_df
-        data_model_instance.current_path = cleaned_path
-        global_state.current_data = cleaned_df
-        global_state.current_path = cleaned_path
-        
-        return jsonify({
-            'success': True,
-            'message': '数据清洗完成',
-            'cleaned_path': cleaned_path, # 前端下次用这个路径请求分析
-            'shape_before': df.shape,
-            'shape_after': cleaned_df.shape,
-            'preview': cleaned_df.head(10).fillna('NaN').to_dict(orient='records')
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        lock = getattr(data_model_instance, "_lock", None)
+        if lock:
+            lock.acquire()
+        data_model_instance.data_cache[cleaned_path] = (cleaned_df, now_ts)
+        if hasattr(data_model_instance, "_cache_access_times") and isinstance(getattr(data_model_instance, "_cache_access_times"), dict):
+            data_model_instance._cache_access_times[cleaned_path] = now_ts
+        if hasattr(data_model_instance, "_cleanup_cache"):
+            data_model_instance._cleanup_cache()
+    finally:
+        if 'lock' in locals() and lock:
+            lock.release()
+    data_model_instance.current_data = cleaned_df
+    data_model_instance.current_path = cleaned_path
+    global_state.set_current_data(cleaned_df, cleaned_path)
+    
+    return create_success_response({
+        'message': '数据清洗完成',
+        'cleaned_path': cleaned_path,
+        'shape_before': df.shape,
+        'shape_after': cleaned_df.shape,
+        'preview': cleaned_df.head(50).fillna('NaN').to_dict(orient='records')
+    })
 
 
 @data_bp.route('/quality_report', methods=['POST'])
+@handle_app_exception
 def quality_report():
-    """数据质量评估：缺失值分布、基础统计、告警信息"""
+    """数据质量评估：整合服务层能力，提供多维评分与深度诊断"""
     try:
         req = request.get_json() or {}
         file_path = req.get('file_path')
+        
         if not file_path:
-            return jsonify({'success': False, 'error': '未提供文件路径'}), 400
-
-        df = get_data(file_path)
+            # 兼容：如果未提供路径，尝试取最近一次的数据
+            df, file_path = global_state.get_current_data()
+            if df is None:
+                raise ValidationException("未提供文件路径且当前无加载数据")
+        else:
+            try:
+                df = get_data(file_path)
+            except Exception:
+                # 虚拟路径失败时回退到全局状态
+                df, _ = global_state.get_current_data()
+                if df is None:
+                    raise
+            
         if df is None or df.empty:
-            return jsonify({'success': False, 'error': '数据为空'}), 400
+            raise DataException("数据集为空，无法进行质量评估")
 
-        # 使用服务层能力生成质量报告
-        profile = data_service.calculate_data_profile(df)
-        validation = data_service.validate_data_integrity(df)
-
-        missing_values = profile.get('missing_values', {})
-        # 取缺失最多的前 12 列做图（避免太挤）
-        sorted_missing = sorted(missing_values.items(), key=lambda x: x[1], reverse=True)
-        top_missing = sorted_missing[:12]
-
-        total_cells = int(df.shape[0] * df.shape[1]) if df.shape[0] and df.shape[1] else 0
-        total_missing = int(sum(missing_values.values())) if missing_values else 0
-        # 不要过度四舍五入：小缺失率（例如 0.02%）在前端 *100 后很容易显示成 0.0%
-        missing_rate = (total_missing / total_cells) if total_cells else 0.0
-
-        return jsonify({
-            'success': True,
-            'summary': {
-                'rows': int(df.shape[0]),
-                'cols': int(df.shape[1]),
-                'total_missing': total_missing,
-                # 保留更高精度给前端展示/计算
-                'missing_rate': round(float(missing_rate), 8),
-                'warnings': validation.get('warnings', []),
-                'errors': validation.get('errors', []),
-            },
+        # 核心：使用增强预处理服务的深度评估
+        assessment = enhanced_preprocessing_service.assess_data_quality(df)
+        
+        # 兼容旧的前端 summary 结构
+        summary = {
+            'rows': int(df.shape[0]),
+            'cols': int(df.shape[1]),
+            'total_missing': assessment['missing_values']['total_missing'],
+            'missing_rate': (assessment['missing_values']['total_missing'] / df.size) if df.size > 0 else 0,
+            'warnings': assessment['data_consistency']['issues_found'],
+            'errors': assessment['missing_values']['high_missing_columns'],
+            'overall_score': assessment['overall_score']
+        }
+        
+        # 针对前端的可视化数据格式化
+        missing_by_col = assessment['missing_values']['missing_percentage_by_column']
+        sorted_missing = sorted(missing_by_col.items(), key=lambda x: x[1], reverse=True)[:12]
+        
+        return create_success_response({
+            'summary': summary,
             'missing_chart': {
-                'labels': [k for k, _ in top_missing],
-                'values': [int(v) for _, v in top_missing]
+                'labels': [k for k, _ in sorted_missing],
+                'values': [v for _, v in sorted_missing]
             },
-            'profile': {
-                'dtypes': profile.get('dtypes', {}),
-            }
+            'assessment': assessment
         })
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"质量评估接口异常: {str(e)}")
+        raise
 
 
 @data_bp.route('/export_current', methods=['GET'])
+@handle_app_exception
 def export_current():
-    """
-    将当前数据集（上传或清洗后的 latest 版本）导出为文件，供用户下载。
-    这也是后续算法/报告所依赖的数据“落盘版本”。
-    """
+    """将当前数据集导出为文件供用户下载"""
     try:
-        # 1. 获取当前数据：优先 global_state，其次 data_model_instance
-        df = getattr(global_state, 'current_data', None)
-        if df is None or getattr(df, 'empty', True):
-            df = getattr(data_model_instance, 'current_data', None)
-
-        if df is None or getattr(df, 'empty', True):
-            return jsonify({'success': False, 'error': '暂无可导出的数据，请先上传或完成清洗。'}), 400
+        df, _ = global_state.get_current_data()
+        if df is None or df.empty:
+            raise DataException("暂无可导出的数据，请先上传或加载数据集")
 
         export_format = (request.args.get('format') or 'csv').strip().lower()
-
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        export_dir = os.path.join(base_dir, 'static', 'exports')
-        os.makedirs(export_dir, exist_ok=True)
-
-        uid = uuid.uuid4().hex
+        
+        # 使用内存流避免产生物理临时文件（更安全、高性能）
+        import io
         if export_format in ('excel', 'xlsx'):
-            filename = f"cleaned_data_{uid}.xlsx"
-            path = os.path.join(export_dir, filename)
-            df.to_excel(path, index=False)
-            return send_file(path, as_attachment=True, download_name='cleaned_data.xlsx')
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=False)
+            output.seek(0)
+            return send_file(
+                output, 
+                as_attachment=True, 
+                download_name=f'processed_data_{datetime.now().strftime("%Y%m%d%H%M")}.xlsx',
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
 
-        # 默认导出 CSV
-        if export_format in ('csv', ''):
-            filename = f"cleaned_data_{uid}.csv"
-            path = os.path.join(export_dir, filename)
-            df.to_csv(path, index=False, encoding='utf-8-sig')
-            return send_file(path, as_attachment=True, download_name='cleaned_data.csv')
-
-        return jsonify({'success': False, 'error': f'不支持的导出格式: {export_format}'}), 400
+        # 默认 CSV
+        output = io.StringIO()
+        df.to_csv(output, index=False, encoding='utf-8-sig')
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),
+            as_attachment=True,
+            download_name=f'processed_data_{datetime.now().strftime("%Y%m%d%H%M")}.csv',
+            mimetype='text/csv'
+        )
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"导出数据失败: {str(e)}")
+        raise
+
+@data_bp.route('/quality_report/download', methods=['GET'])
+@handle_app_exception
+def download_quality_report():
+    """下载数据质量诊断报告（HTML 格式）"""
+    try:
+        df, current_path = global_state.get_current_data()
+        if df is None:
+            raise ValidationException("无加载数据，无法生成报告")
+
+        assessment = enhanced_preprocessing_service.assess_data_quality(df)
+        dataset_name = os.path.basename(current_path) if current_path else '未知数据集'
+
+        html = _render_quality_html(assessment, dataset_name)
+
+        import io
+        output = io.BytesIO(html.encode('utf-8'))
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f'数据质量诊断报告_{datetime.now().strftime("%Y%m%d%H%M")}.html',
+            mimetype='text/html'
+        )
+    except Exception as e:
+        logger.error(f"下载质量报告失败: {str(e)}")
+        raise
+
+
+def _render_quality_html(assessment: dict, dataset_name: str) -> str:
+    """将质量评估数据渲染为可读 HTML 报告"""
+    basic = assessment.get('basic_info', {})
+    shape = basic.get('shape', (0, 0))
+    mem_mb = basic.get('memory_usage_mb', 0)
+    dtypes = basic.get('dtypes', {})
+    score = max(0, min(100, assessment.get('overall_score', 0)))
+
+    missing = assessment.get('missing_values', {})
+    total_missing = missing.get('total_missing', 0)
+    pct_by_col = missing.get('missing_percentage_by_column', {})
+    high_missing = missing.get('high_missing_columns', [])
+
+    dup = assessment.get('duplicates', {})
+    dup_count = dup.get('total_duplicates', 0)
+    dup_pct = dup.get('duplicate_percentage', 0)
+
+    outliers = assessment.get('outliers', {})
+    consistency = assessment.get('data_consistency', {})
+    issues = consistency.get('issues_found', [])
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # --- score color ---
+    if score >= 80:
+        score_color, score_label = '#16a34a', '优良'
+    elif score >= 60:
+        score_color, score_label = '#d97706', '中等'
+    else:
+        score_color, score_label = '#dc2626', '较差'
+
+    # --- dtype rows ---
+    dtype_rows = ''.join(
+        f'<tr><td>{k}</td><td>{v} 列</td></tr>' for k, v in dtypes.items()
+    ) or '<tr><td colspan="2">无</td></tr>'
+
+    # --- missing rows (top 15) ---
+    sorted_missing = sorted(pct_by_col.items(), key=lambda x: x[1], reverse=True)
+    missing_rows = ''
+    for col, pct in sorted_missing[:15]:
+        bar_w = min(pct, 100)
+        bar_color = '#dc2626' if pct > 50 else ('#d97706' if pct > 10 else '#2383e2')
+        missing_rows += (
+            f'<tr>'
+            f'<td>{col}</td>'
+            f'<td style="width:55%"><div class="bar-bg"><div class="bar" style="width:{bar_w}%;background:{bar_color}"></div></div></td>'
+            f'<td style="text-align:right">{pct:.2f}%</td>'
+            f'</tr>'
+        )
+    if not missing_rows:
+        missing_rows = '<tr><td colspan="3" style="text-align:center;color:#9ca3af">所有列均无缺失值 ✓</td></tr>'
+
+    # --- high missing warning ---
+    high_missing_html = ''
+    if high_missing:
+        cols_str = '、'.join(high_missing)
+        high_missing_html = f'<div class="alert alert-danger">⚠ 高缺失列（>50%）：{cols_str}</div>'
+
+    # --- outlier rows ---
+    outlier_rows = ''
+    for col, info in outliers.items():
+        cnt = info.get('count', 0)
+        pct = info.get('percentage', 0)
+        if cnt > 0:
+            outlier_rows += (
+                f'<tr>'
+                f'<td>{col}</td>'
+                f'<td style="text-align:right">{cnt}</td>'
+                f'<td style="text-align:right">{pct:.2f}%</td>'
+                f'<td>{info["bounds"]["lower"]:.4g} ~ {info["bounds"]["upper"]:.4g}</td>'
+                f'</tr>'
+            )
+    if not outlier_rows:
+        outlier_rows = '<tr><td colspan="4" style="text-align:center;color:#9ca3af">未检测到显著异常值 ✓</td></tr>'
+
+    # --- consistency ---
+    if issues:
+        issue_items = ''.join(f'<li>{i}</li>' for i in issues)
+        consistency_html = f'<ul class="issue-list">{issue_items}</ul>'
+    else:
+        consistency_html = '<p class="ok-text">未发现数据一致性问题 ✓</p>'
+
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据质量诊断报告</title>
+<style>
+  :root {{ --bg: #f8f9fa; --card: #fff; --border: #e5e7eb; --text: #1f2937; --muted: #6b7280; --accent: #2383e2; }}
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+          background: var(--bg); color: var(--text); line-height:1.6; padding:40px 20px; }}
+  .container {{ max-width:900px; margin:0 auto; }}
+  .header {{ text-align:center; margin-bottom:36px; }}
+  .header h1 {{ font-size:26px; font-weight:900; letter-spacing:-0.5px; margin-bottom:6px; }}
+  .header .subtitle {{ font-size:13px; color:var(--muted); }}
+  .score-ring {{ display:inline-flex; align-items:center; justify-content:center;
+                 width:100px; height:100px; border-radius:50%; margin:20px auto 8px;
+                 border:6px solid {score_color}; }}
+  .score-ring .val {{ font-size:32px; font-weight:900; color:{score_color}; }}
+  .score-label {{ font-size:13px; font-weight:700; color:{score_color}; }}
+  .card {{ background:var(--card); border:1px solid var(--border); border-radius:14px;
+           padding:24px 28px; margin-bottom:20px; }}
+  .card h2 {{ font-size:15px; font-weight:800; margin-bottom:14px; display:flex; align-items:center; gap:8px; }}
+  .card h2 .icon {{ font-size:18px; }}
+  table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+  th, td {{ padding:8px 10px; border-bottom:1px solid #f1f1f0; text-align:left; }}
+  th {{ font-weight:700; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }}
+  .bar-bg {{ height:8px; background:#f1f1f0; border-radius:4px; overflow:hidden; }}
+  .bar {{ height:100%; border-radius:4px; transition:width .3s; }}
+  .kv-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }}
+  .kv-item {{ background:#f9fafb; padding:14px 16px; border-radius:10px; }}
+  .kv-item .label {{ font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.3px; }}
+  .kv-item .value {{ font-size:20px; font-weight:800; margin-top:4px; }}
+  .alert {{ padding:12px 16px; border-radius:10px; font-size:13px; font-weight:600; margin-bottom:14px; }}
+  .alert-danger {{ background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }}
+  .issue-list {{ padding-left:20px; font-size:13px; }}
+  .issue-list li {{ margin-bottom:6px; }}
+  .ok-text {{ color:#16a34a; font-weight:600; font-size:13px; }}
+  .footer {{ text-align:center; margin-top:36px; font-size:11px; color:var(--muted); }}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>数据质量诊断报告</h1>
+    <p class="subtitle">{dataset_name} · 生成时间 {now_str}</p>
+    <div class="score-ring"><span class="val">{score:.0f}</span></div>
+    <div class="score-label">综合评分 · {score_label}</div>
+  </div>
+
+  <!-- 基本信息 -->
+  <div class="card">
+    <h2><span class="icon">📋</span> 数据集概览</h2>
+    <div class="kv-grid">
+      <div class="kv-item"><div class="label">行数</div><div class="value">{shape[0]:,}</div></div>
+      <div class="kv-item"><div class="label">列数</div><div class="value">{shape[1]:,}</div></div>
+      <div class="kv-item"><div class="label">内存占用</div><div class="value">{mem_mb:.2f} MB</div></div>
+      <div class="kv-item"><div class="label">总缺失单元格</div><div class="value">{total_missing:,}</div></div>
+    </div>
+    <table style="margin-top:16px">
+      <tr><th>数据类型</th><th>列数</th></tr>
+      {dtype_rows}
+    </table>
+  </div>
+
+  <!-- 缺失值 -->
+  <div class="card">
+    <h2><span class="icon">🔍</span> 缺失值分析</h2>
+    {high_missing_html}
+    <table>
+      <tr><th>列名</th><th>缺失占比</th><th style="text-align:right">百分比</th></tr>
+      {missing_rows}
+    </table>
+  </div>
+
+  <!-- 重复值 -->
+  <div class="card">
+    <h2><span class="icon">📑</span> 重复值检测</h2>
+    <div class="kv-grid">
+      <div class="kv-item"><div class="label">重复行数</div><div class="value">{dup_count:,}</div></div>
+      <div class="kv-item"><div class="label">重复率</div><div class="value">{dup_pct:.2f}%</div></div>
+    </div>
+  </div>
+
+  <!-- 异常值 -->
+  <div class="card">
+    <h2><span class="icon">📊</span> 异常值检测 (IQR)</h2>
+    <table>
+      <tr><th>列名</th><th style="text-align:right">异常值数</th><th style="text-align:right">占比</th><th>正常范围</th></tr>
+      {outlier_rows}
+    </table>
+  </div>
+
+  <!-- 一致性 -->
+  <div class="card">
+    <h2><span class="icon">🛡️</span> 数据一致性</h2>
+    {consistency_html}
+  </div>
+
+  <div class="footer">
+    <p>由 <strong>BivaStat-Miner 双变量关联挖掘与非参数统计分析平台</strong> 自动生成</p>
+  </div>
+</div>
+</body>
+</html>
+"""
 
 
 @data_bp.route('/profile', methods=['GET'])
@@ -370,12 +588,14 @@ def auto_profile():
     供算法配置页和结果分析页自动读取，降低用户选参数的负担。
     """
     try:
-        # 1. 获取当前数据（优先 global_state，其次 data_model_instance）
-        df = getattr(global_state, 'current_data', None)
-        if df is None or getattr(df, 'empty', True):
-            df = getattr(data_model_instance, 'current_data', None)
+        # 1. 获取当前数据（使用全局状态管理器的线程安全方法）
+        df, path = global_state.get_current_data()
+        
+        # 如果全局状态为空，尝试从 model 层兜底（通常同步）
+        if df is None or df.empty:
+            df = data_model_instance.current_data
 
-        if df is None or getattr(df, 'empty', True):
+        if df is None or df.empty:
             return jsonify({
                 'success': False,
                 'error': '暂无已加载的数据，请先上传或完成预处理。',
@@ -385,7 +605,10 @@ def auto_profile():
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = [c for c in df.columns if c not in numeric_cols]
 
-        # 2. 根据样本规模和类型简单启发式推荐参数
+        # 2. 生成质量评估（复用逻辑）
+        assessment = enhanced_preprocessing_service.assess_data_quality(df)
+        
+        # 根据样本规模和类型简单启发式推荐参数
         if rows < 1000:
             rec_support = 0.08
         elif rows < 5000:
@@ -406,12 +629,10 @@ def auto_profile():
         if len(numeric_cols) >= 2:
             recommend_tests.append('ks')
 
-        # 默认 P 阈值
-        rec_p = 0.05
-
         profile = {
             'rows': rows,
             'cols': cols,
+            'columns': list(df.columns),
             'numeric_cols': numeric_cols,
             'categorical_cols': categorical_cols,
         }
@@ -420,15 +641,19 @@ def auto_profile():
             'min_support': round(rec_support, 3),
             'min_confidence': round(rec_confidence, 3),
             'min_lift': 1.0,
-            'p_value_threshold': rec_p,
+            'p_value_threshold': 0.05,
             'suggested_tests': recommend_tests,
-            'summary_text': _build_recommend_summary(rows, cols, numeric_cols, categorical_cols, rec_support, rec_confidence, rec_p, recommend_tests),
+            'summary_text': _build_recommend_summary(rows, cols, numeric_cols, categorical_cols, rec_support, rec_confidence, 0.05, recommend_tests),
+            'overall_score': assessment['overall_score']
         }
+        from services.algorithm_service import algorithm_service
+        mining_readiness = algorithm_service.assess_mining_suitability(df, recommendations)
 
-        return jsonify({
-            'success': True,
+        return create_success_response({
             'profile': profile,
             'recommendations': recommendations,
+            'assessment': assessment,
+            'mining_readiness': mining_readiness
         })
     except Exception as e:
         import traceback
@@ -553,21 +778,44 @@ def enhanced_preprocessing():
             if current_data is None:
                 raise ValidationException("未找到数据，请先上传或导入数据")
             df = current_data
+            file_path = current_path if isinstance(current_path, str) else "current_dataset"
         else:
             df = get_data(file_path)
         
         # 执行增强预处理
         preprocessing_result = enhanced_preprocessing_service.comprehensive_preprocessing(df, config)
+        final_df = preprocessing_result.get('final_df')
         
         # 更新全局状态
-        global_state.set_current_data(preprocessing_result['final_df'], file_path + "_enhanced")
-        data_model_instance.current_data = preprocessing_result['final_df']
-        data_model_instance.current_path = file_path + "_enhanced"
+        enhanced_path = f"{file_path}_enhanced"
+        final_df = preprocessing_result['final_df']
+        global_state.set_current_data(final_df, enhanced_path)
+        data_model_instance.current_data = final_df
+        data_model_instance.current_path = enhanced_path
+        # 关键修复：同步写入 data_cache，否则后续 get_data 找不到虚拟路径
+        now_ts = time.time()
+        with data_model_instance._lock:
+            data_model_instance.data_cache[enhanced_path] = (final_df, now_ts)
+            data_model_instance._cache_access_times[enhanced_path] = now_ts
         
+        response_result = {
+            'original_shape': preprocessing_result.get('original_shape', df.shape),
+            'final_shape': getattr(final_df, 'shape', preprocessing_result.get('final_shape', df.shape)),
+            'steps_applied': preprocessing_result.get('steps_applied', []),
+            'processing_log': preprocessing_result.get('processing_log', []),
+            'success': preprocessing_result.get('success', True),
+            'columns': list(final_df.columns) if isinstance(final_df, pd.DataFrame) else list(df.columns),
+            'preview': (
+                final_df.head(300).fillna('').to_dict(orient='records')
+                if isinstance(final_df, pd.DataFrame)
+                else []
+            )
+        }
+
         return create_success_response({
-            'message': '增强预处理完成',
-            'preprocessing_result': preprocessing_result
-        })
+            'path': enhanced_path,
+            'preprocessing_result': to_json_compatible(response_result)
+        }, message='增强预处理完成')
         
     except Exception as e:
         raise DataException(f"增强预处理失败: {str(e)}")
@@ -719,7 +967,8 @@ def load_sample_dataset():
             'message': f'示例数据集 "{dataset_type}" 加载成功',
             'shape': df.shape,
             'columns': list(df.columns),
-            'preview': df.head(10).fillna('').to_dict(orient='records'),
+            'path': full_path,
+            'preview': df.head(300).fillna('').to_dict(orient='records'),
             'dataset_info': {
                 'type': dataset_type,
                 'rows': len(df),

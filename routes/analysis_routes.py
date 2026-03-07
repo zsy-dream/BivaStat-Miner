@@ -124,6 +124,9 @@ def run_test():
     try:
         req = request.get_json() or {}
         test_type = (req.get('test_type') or 'chi2').strip().lower()
+        alpha = float(req.get('alpha', 0.05))
+        var1 = req.get('var1')
+        var2 = req.get('var2')
 
         # 优先使用当前会话数据（上传/清洗后会写入）
         df = getattr(global_state, 'current_data', None)
@@ -150,8 +153,19 @@ def run_test():
             'spearman': 'spearman',
         }
         mapped = mapping.get(test_type, test_type)
+        if not var1 or not var2:
+            numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+            if len(numeric_cols) >= 2:
+                var1, var2 = numeric_cols[:2]
+            else:
+                return jsonify({'success': False, 'error': '请指定 var1 和 var2，或确保当前数据至少包含两列数值变量。'}), 400
 
-        results = nonparametric_test(df, test_type=mapped)
+        results = nonparametric_test(df, {
+            'test_method': mapped,
+            'alpha': alpha,
+            'var1': var1,
+            'var2': var2
+        })
         if isinstance(results, dict) and results.get('error'):
             return jsonify({'success': False, 'error': results['error']}), 400
 
@@ -185,8 +199,8 @@ def export_results():
         export_rows = []
         for r in rules:
             export_rows.append({
-                'Antecedent': fmt_items(r.get('antecedent')),
-                'Consequent': fmt_items(r.get('consequent')),
+                'Antecedent': fmt_items(r.get('antecedent') or r.get('antecedents')),
+                'Consequent': fmt_items(r.get('consequent') or r.get('consequents')),
                 'Support': r.get('support', 0),
                 'Confidence': r.get('confidence', 0),
                 'Lift': r.get('lift', 0),

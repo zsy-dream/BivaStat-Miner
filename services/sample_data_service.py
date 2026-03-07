@@ -19,7 +19,8 @@ class SampleDataGenerator:
             'financial': self._generate_financial_data,
             'education': self._generate_education_data,
             'marketing': self._generate_marketing_data,
-            'iris_extended': self._generate_iris_extended
+            'iris_extended': self._generate_iris_extended,
+            'market_basket': self._generate_retail_data  # Alias to retail for now
         }
     
     def get_available_datasets(self) -> Dict[str, Any]:

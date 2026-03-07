@@ -1,27 +1,27 @@
 import time
+import threading
 import pandas as pd
 import psutil
 import random
 import numpy as np
-from models.rule_model import RuleModel, filter_rules, sort_rules
 from utils.task_manager import task_manager
 from utils.global_state import global_state
 from services.algorithm_service import algorithm_service
-
-rule_model = RuleModel()
 
 def async_algorithm_task(task_id, manager):
     """
     异步执行的算法任务逻辑
     """
+    def _check_cancel():
+        """检查取消状态，若已取消则抛出异常中断执行"""
+        if manager.is_cancelled(task_id):
+            raise InterruptedError('任务已被用户取消')
+
     try:
         # 用于估算剩余时间
         start_ts = time.time()
 
         def _eta(current_progress: float) -> float:
-            """
-            根据当前进度估算剩余秒数（非常粗略，只用于监控展示）。
-            """
             if current_progress <= 0:
                 return 0
             elapsed = time.time() - start_ts
@@ -29,20 +29,17 @@ def async_algorithm_task(task_id, manager):
             return round(remaining, 1)
         task = manager.get_task(task_id)
         params = task['params']
-        # 获取新参数
         enable_pruning = params.get('enable_pruning', False)
         enable_parallel = params.get('enable_parallel', False)
         p_val_thresh = params.get('p_value_threshold', 0.05)
         test_method = params.get('test_method', 'auto')
         
-        df = params.get('df') # DataFrame is passed directly (in memory) or path
+        df = params.get('df')
         
-        # Check for cancellation
-        if task['status'] == 'cancelled': return
+        _check_cancel()
 
         # --- Step 1: 数据加载 ---
         manager.update_task(task_id, step_update={'index': 0, 'status': 'running'}, logs=['开始加载原始数据集...'])
-        time.sleep(0.1) # 显著降低等待时间
         
         if 'data_path' in params:
              # 关键修复：清洗后的数据可能是“虚拟路径”(xxx.cleaned)，只能从缓存取
@@ -66,17 +63,16 @@ def async_algorithm_task(task_id, manager):
         )
 
         # --- Step 2: 数据预处理 ---
-        if task['status'] == 'cancelled': return
+        _check_cancel()
         manager.update_task(task_id, step_update={'index': 1, 'status': 'running'}, logs=['开始数据预处理...'])
         
-        # Simulate processing chunks
-        # 避免小数据集 total_records//10 为 0，导致 processed 一直是 0
         chunk_size = max(1, total_records // 10) if total_records > 0 else 1
         for i in range(0, 5): 
-            if manager.get_task(task_id)['status'] == 'cancelled': return
-            time.sleep(0.01) 
+            _check_cancel()
+            time.sleep(0.005) 
             processed = (i + 1) * chunk_size
-            mem = psutil.virtual_memory()
+            process_mem_mb = round(psutil.Process().memory_info().rss / (1024**2), 1)
+            mem_total_gb = round(psutil.virtual_memory().total / (1024**3), 1)
             current_progress = 10 + i * 4
             manager.update_task(
                 task_id,
@@ -84,8 +80,9 @@ def async_algorithm_task(task_id, manager):
                 metrics={
                     'processed_count': processed,
                     'total_count': total_records,
-                    'memory_usage': round(mem.used / (1024**3), 2),
-                    'memory_total': round(mem.total / (1024**3), 1),
+                    'memory_usage': process_mem_mb,     # 兼容旧字段：现在单位改为 MB
+                    'memory_usage_mb': process_mem_mb,  # 推荐新字段
+                    'memory_total_gb': mem_total_gb,
                     'estimated_time_remaining': _eta(current_progress)
                 }
             )
@@ -103,7 +100,7 @@ def async_algorithm_task(task_id, manager):
         )
 
         # --- Step 3: 关联规则挖掘 ---
-        if task['status'] == 'cancelled': return
+        _check_cancel()
         manager.update_task(task_id, step_update={'index': 2, 'status': 'running'}, logs=['开始关联规则挖掘...'])
         
         manager.update_task(task_id, logs=[f"初始化Apriori算法参数: 最小支持度={params.get('min_support')}, 最小置信度={params.get('min_confidence')}"])
@@ -121,7 +118,6 @@ def async_algorithm_task(task_id, manager):
         
         # Simulate L1, L2 generation
         manager.update_task(task_id, logs=['生成频繁项集 L1...'])
-        time.sleep(0.1)
         manager.update_task(
             task_id,
             progress=40,
@@ -130,7 +126,6 @@ def async_algorithm_task(task_id, manager):
         )
         
         manager.update_task(task_id, logs=['生成频繁项集 L2...'])
-        time.sleep(0.1)
         manager.update_task(
             task_id,
             progress=50,
@@ -138,38 +133,86 @@ def async_algorithm_task(task_id, manager):
             logs=['已生成 1,234 个频繁2项集']
         )
 
-        # Actual mining
-        # 关键优化：数值列分箱 + item 加列名前缀，避免连续值导致 Apriori 卡死
-        transactions = algorithm_service._build_transactions(df_clean, params)
-        manager.update_task(
-            task_id,
-            logs=[
-                f"已构造交易数据：{len(transactions)} 条记录，"
-                f"参与挖掘列数上限={params.get('max_columns_for_mining', 30)}，"
-                f"数值分箱={params.get('numeric_bins', 5)}"
+        _check_cancel()  # 挖掘前检查
+
+        # 挖掘可能耗时数分钟，启动心跳线程防止前端看到进度冻结
+        _mining_done = threading.Event()
+        _beat_progress = [51]  # mutable int in closure
+
+        def _mining_heartbeat():
+            HEARTBEAT_INTERVAL = 8  # seconds
+            BEAT_MSGS = [
+                '[计算中] 频繁项集迭代搜索中，请耐心等待...',
+                '[计算中] 候选规则剪枝与评估进行中...',
+                '[计算中] 关联度矩阵重组处理中...',
+                '[计算中] 支持度 / 置信度联合筛选中...',
+                '[计算中] 规则排序与去冗余处理中...',
             ]
-        )
-        rules = rule_model.generate_rules(
-            transactions,
-            min_support=params.get('min_support', 0.1),
-            min_confidence=params.get('min_confidence', 0.5),
-            min_lift=params.get('min_lift', 1.0),
-            max_len=params.get('max_len', 5)
-        )
-        
-        filtered_rules = filter_rules(rules, params.get('min_support', 0.1))
-        sorted_rules = sort_rules(filtered_rules)
+            beat_idx = 0
+            while not _mining_done.wait(timeout=HEARTBEAT_INTERVAL):
+                if manager.is_cancelled(task_id):
+                    return
+                p = min(_beat_progress[0], 68)
+                _beat_progress[0] = p + 2
+                manager.update_task(
+                    task_id,
+                    progress=p,
+                    metrics={'estimated_time_remaining': _eta(p)},
+                    logs=[BEAT_MSGS[beat_idx % len(BEAT_MSGS)]]
+                )
+                beat_idx += 1
+
+        _hb_thread = threading.Thread(target=_mining_heartbeat, daemon=True)
+        _hb_thread.start()
+        try:
+            mining_result = algorithm_service.mine_association_with_diagnostics(df_clean, params)
+        finally:
+            _mining_done.set()  # 停止心跳
+            _hb_thread.join(timeout=1.0)
+
+        _check_cancel()  # 挖掘后检查
+        sorted_rules = mining_result.get('association_rules', [])
+        diagnostics = mining_result.get('mining_diagnostics', {}) or {}
+        fallback_attempts = mining_result.get('fallback_attempts', []) or []
+        selected_attempt = mining_result.get('selected_attempt') or {}
+        excluded_columns = diagnostics.get('excluded_columns', []) or []
+        tx_summary = diagnostics.get('transaction_summary', {}) or {}
+        selected_columns = diagnostics.get('selected_columns', []) or []
+
+        mining_logs = [
+            f"数据挖掘适配度：{diagnostics.get('readiness_score', 0)} 分（{diagnostics.get('readiness_level', 'poor')}）",
+            f"有效挖掘列 {len(selected_columns)} 个，构造交易 {tx_summary.get('transaction_count', 0)} 条，平均每条 {tx_summary.get('avg_items_per_transaction', 0):.2f} 项"
+        ]
+        if excluded_columns:
+            preview_names = '、'.join(item.get('name', '') for item in excluded_columns[:4] if item.get('name'))
+            if preview_names:
+                mining_logs.append(f"自动排除 {len(excluded_columns)} 个不适合挖掘的字段（如 {preview_names}）")
+        if selected_attempt.get('strategy') and selected_attempt.get('strategy') != 'initial':
+            initial_rules = fallback_attempts[0].get('rules_found', 0) if fallback_attempts else 0
+            mining_logs.append(
+                f"初始规则 {initial_rules} 条，已自动切换到“{selected_attempt.get('name', '回退策略')}”策略，当前输出 {selected_attempt.get('rules_found', 0)} 条"
+            )
+        elif not sorted_rules:
+            mining_logs.append('当前参数及回退策略均未生成规则，结果将返回数据诊断与调参建议。')
+
+        for warning in (mining_result.get('warnings', []) or [])[:2]:
+            mining_logs.append(f"提示：{warning}")
+
+        manager.update_task(task_id, logs=mining_logs)
         
         manager.update_task(
             task_id,
             step_update={'index': 2, 'status': 'completed'},
             progress=70,
             metrics={'estimated_time_remaining': _eta(70)},
-            logs=[f'关联规则挖掘完成，生成规则 {len(sorted_rules)} 条']
+            logs=[
+                f'关联规则挖掘完成，生成规则 {len(sorted_rules)} 条',
+                f"共执行 {max(len(fallback_attempts), 1)} 轮策略尝试，最终策略：{selected_attempt.get('name', '原始参数')}"
+            ]
         )
 
         # --- Step 4: 统计检验 ---
-        if task['status'] == 'cancelled': return
+        _check_cancel()
         manager.update_task(task_id, step_update={'index': 3, 'status': 'running'}, logs=['开始非参数统计检验...'])
         
         # 模拟或执行非参数检验
@@ -182,17 +225,24 @@ def async_algorithm_task(task_id, manager):
             f"[置信区间] 计算 {params.get('confidence_interval', 0.95)*100}% 置信区间 (Bootstrap Sampling n=1000)"
         ])
         
-        time.sleep(0.2)
+        stats_completion_logs = []
+        if sorted_rules:
+            significant_rules = mining_result.get('summary', {}).get('significant_rules', 0)
+            stats_completion_logs.append(f'{test_name} 完成，规则级显著结果 {significant_rules} 条')
+        else:
+            stats_completion_logs.append(f'{test_name} 完成，当前无关联规则输出，保留全局统计阈值与数据诊断')
+        stats_completion_logs.append('Spearman 相关性分析完成')
+
         manager.update_task(
             task_id,
             step_update={'index': 3, 'status': 'completed'},
             progress=85,
             metrics={'estimated_time_remaining': _eta(85)},
-            logs=[f'{test_name} 完成，发现 12 对显著相关变量', 'Spearman 相关性分析完成']
+            logs=stats_completion_logs
         )
 
         # --- Step 5: 结果生成 ---
-        if task['status'] == 'cancelled': return
+        _check_cancel()
         manager.update_task(task_id, step_update={'index': 4, 'status': 'running'}, logs=['生成最终结果报告...'])
         
         # Construct result package similar to the one in routes
@@ -226,19 +276,22 @@ def async_algorithm_task(task_id, manager):
                 manager.update_task(task_id, logs=[f'⚠️ 相关矩阵计算失败，已跳过热力图：{str(e)}'])
                 heatmap_data = {}
 
+        summary = dict(mining_result.get('summary', {}))
+        summary.update({
+            'total_rules': len(sorted_rules),
+            'total_records': len(df_clean),
+            'p_value_threshold': p_val_thresh,
+            'test_method': test_name
+        })
+
         result_package = {
-            'association_rules': sorted_rules,
+            **mining_result,
             'heatmap_data': heatmap_data,
-            'summary': {
-                'total_rules': len(sorted_rules),
-                'total_records': len(df_clean),
-                'p_value_threshold': p_val_thresh,
-                'test_method': test_name
-            }
+            'summary': summary
         }
         
-        time.sleep(0.5)
         manager.update_task(task_id, progress=95, metrics={'estimated_time_remaining': _eta(95)}, logs=['封装结果并写入任务状态...'])
+        _check_cancel()
         manager.update_task(
             task_id,
             status='completed',
@@ -255,11 +308,14 @@ def async_algorithm_task(task_id, manager):
         except Exception:
             pass
 
-    except Exception as e:
+    except (InterruptedError, Exception) as e:
+        # 取消引起的异常不算失败
+        if manager.is_cancelled(task_id) or isinstance(e, InterruptedError):
+            manager.update_task(task_id, logs=['任务已被用户取消，执行已中断'])
+            return
         import traceback
         traceback.print_exc()
         manager.update_task(task_id, 
             status='failed', 
             error=str(e),
-            logs=[f'❌ 任务执行出错: {str(e)}']
-        )
+            logs=[f'❌ 任务执行出错: {str(e)}'])

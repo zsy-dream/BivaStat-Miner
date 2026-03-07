@@ -66,6 +66,15 @@ class GlobalState:
         with self._lock:
             return self._last_task_id
 
+    @property
+    def last_task_id(self) -> Optional[str]:
+        """property 代理，兼容历史代码中的 global_state.last_task_id 直接访问"""
+        return self.get_last_task_id()
+
+    @last_task_id.setter
+    def last_task_id(self, value: Optional[str]) -> None:
+        self.set_last_task_id(value)
+
     def clear(self, pattern: Optional[str] = None) -> None:
         """清理状态，支持模式匹配"""
         with self._lock:
