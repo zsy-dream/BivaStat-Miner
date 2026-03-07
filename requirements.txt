@@ -9,6 +9,8 @@ xlrd
 xlsxwriter
 python-dotenv
 plotly
+seaborn
+matplotlib
 jinja2
 markdown
 requests
