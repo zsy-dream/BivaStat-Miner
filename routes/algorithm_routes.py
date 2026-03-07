@@ -201,7 +201,11 @@ def get_history():
             'status': task.get('status'),
             'type': task.get('type'),
             'start_time': task.get('start_time'),
+            'end_time': task.get('end_time'),
+            'updated_at': task.get('updated_at'),
             'progress': task.get('progress'),
+            'message': task.get('error'),
+            'has_result': bool(task.get('result')),
             'records': task.get('metrics', {}).get('total_count', 0),
             'rules_found': len(
                 task.get('result', {}).get('association_rules')

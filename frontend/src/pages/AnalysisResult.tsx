@@ -99,6 +99,7 @@ export default function AnalysisResult() {
     const [aiCopied, setAiCopied] = useState(false);
     const [stopping, setStopping] = useState(false);
     const [activeFocusedRuleKey, setActiveFocusedRuleKey] = useState('');
+    const [lastTaskSnapshot, setLastTaskSnapshot] = useState<Task | null>(null);
     const ruleRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
     const ruleCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -224,6 +225,11 @@ export default function AnalysisResult() {
                 const ok = await confirm('确定要终止当前任务吗？终止后本次计算结果不会继续生成。');
                 if (!ok) return;
                 setStopping(true);
+                setTask(prev => prev ? {
+                    ...prev,
+                    status: 'cancelled',
+                    logs: [...prev.logs, `[${new Date().toLocaleTimeString('zh-CN', { hour12: false })}] 已发送终止指令，正在等待引擎停止...`]
+                } : prev);
             }
             await algorithmService.controlTask(action, taskId);
             await fetchStatus();
@@ -237,34 +243,18 @@ export default function AnalysisResult() {
         }
     };
 
-    // 如果没有 task_id，尝试自动加载最近一次任务
+    // 如果没有 task_id，仅查询最近任务用于提示，不再自动跳转，避免页面状态乱跳
     const [autoLoading, setAutoLoading] = useState(false);
     useAbortEffect((signal) => {
         if (taskId) return;
-        try {
-            const cachedTaskId = localStorage.getItem(LAST_TASK_ID_STORAGE_KEY);
-            if (cachedTaskId) {
-                navigate(`/analysis_result?task_id=${cachedTaskId}`, { replace: true });
-                return;
-            }
-        } catch {
-            // ignore
-        }
         setAutoLoading(true);
         algorithmService.getLastTask(signal)
             .then(res => {
-                if (res.success && res.task?.task_id) {
-                    try {
-                        localStorage.setItem(LAST_TASK_ID_STORAGE_KEY, res.task.task_id);
-                    } catch {
-                        // ignore
-                    }
-                    navigate(`/analysis_result?task_id=${res.task.task_id}`, { replace: true });
-                }
+                setLastTaskSnapshot(res.success ? (res.task ?? null) : null);
             })
             .catch(() => {})
             .finally(() => setAutoLoading(false));
-    }, [taskId, navigate]);
+    }, [taskId]);
 
     const results = task?.result;
     const rules = results?.rules ?? [];
@@ -397,19 +387,47 @@ export default function AnalysisResult() {
     };
 
     if (!taskId) {
+        const lastTaskStatusLabel = lastTaskSnapshot?.status === 'running' || lastTaskSnapshot?.status === 'pending'
+            ? '最近任务仍在进行中'
+            : lastTaskSnapshot?.status === 'completed'
+                ? '最近任务已完成'
+                : lastTaskSnapshot?.status === 'failed'
+                    ? '最近任务执行失败'
+                    : lastTaskSnapshot?.status === 'cancelled' || lastTaskSnapshot?.status === 'stopped'
+                        ? '最近任务已终止'
+                        : '暂无可继续的任务';
         return (
             <div className="flex flex-col items-center justify-center p-20 text-[#787774] bg-white rounded-xl border border-[#e9e9e8] shadow-sm max-w-2xl mx-auto mt-20 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4">
                 <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-inner">
                     {autoLoading ? <RefreshCw size={40} className="animate-spin" /> : <Activity size={40} />}
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-xl font-black text-[#37352f]">{autoLoading ? '正在检索最近任务...' : '引擎暂未启动或已销毁'}</h3>
+                    <h3 className="text-xl font-black text-[#37352f]">{autoLoading ? '正在检索最近任务...' : '当前没有指定任务'}</h3>
                     {!autoLoading && (
                         <p className="text-sm max-w-sm mx-auto leading-relaxed">
-                            当前未检测到活跃的算法计算槽位任务。建议您前往算法配置大厅，针对最新数据集投递计算任务。
+                            结果页不会再自动跳转到旧任务。请手动选择最近任务或历史记录，避免“网络错误后又跳到旧任务”的混乱情况。
                         </p>
                     )}
                 </div>
+                {!autoLoading && lastTaskSnapshot?.task_id && (
+                    <div className="w-full rounded-xl border border-[#e9e9e8] bg-[#fafafa] p-4 text-left">
+                        <div className="text-[11px] font-black uppercase tracking-widest text-[#9b9a97]">最近任务</div>
+                        <div className="mt-2 text-sm font-semibold text-[#37352f]">{lastTaskStatusLabel}</div>
+                        <div className="mt-1 text-xs text-[#787774] break-all">UUID: {lastTaskSnapshot.task_id}</div>
+                        <div className="mt-1 text-xs text-[#787774]">
+                            当前进度 {Number(lastTaskSnapshot.progress ?? 0).toFixed(1)}%
+                            {lastTaskSnapshot.start_time ? ` · 启动于 ${new Date(lastTaskSnapshot.start_time).toLocaleString('zh-CN', { hour12: false })}` : ''}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <Button size="sm" onClick={() => navigate(`/analysis_result?task_id=${lastTaskSnapshot.task_id}`)}>
+                                打开最近任务
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => navigate('/history')}>
+                                去历史记录筛选状态
+                            </Button>
+                        </div>
+                    </div>
+                )}
                 {!autoLoading && (
                     <div className="flex items-center gap-3">
                         <Button
@@ -457,6 +475,7 @@ export default function AnalysisResult() {
                     <AlertCircle className="w-12 h-12 text-amber-500 mb-3" />
                     <h2 className="text-lg font-bold text-amber-900 mb-2">任务状态不可用</h2>
                     <p className="text-amber-800 text-sm mb-5">{statusError}</p>
+                    <p className="text-amber-700 text-xs mb-5">如果这是刚启动的新任务，通常刷新一次或回到历史记录重新进入即可；如果多次都失败，再按失败任务处理。</p>
                     <div className="flex items-center gap-3">
                         <Button variant="outline" onClick={() => navigate('/history')}>查看历史</Button>
                         <Button onClick={() => navigate('/algorithm')}>重新发起任务</Button>

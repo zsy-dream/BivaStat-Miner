@@ -15,6 +15,7 @@ export default function History() {
     const [tasks, setTasks] = useState<TaskHistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'failed' | 'cancelled'>('all');
     const navigate = useNavigate();
     const { toast, confirm } = useToast();
 
@@ -53,9 +54,17 @@ export default function History() {
             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
     };
+    const matchStatusFilter = (task: TaskHistoryItem) => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'active') return task.status === 'running' || task.status === 'pending';
+        if (statusFilter === 'completed') return task.status === 'completed';
+        if (statusFilter === 'failed') return task.status === 'failed';
+        if (statusFilter === 'cancelled') return task.status === 'cancelled' || task.status === 'stopped';
+        return true;
+    };
 
     const filteredTasks = tasks.filter(t =>
-        t.task_id.toLowerCase().includes(searchTerm.toLowerCase())
+        t.task_id.toLowerCase().includes(searchTerm.toLowerCase()) && matchStatusFilter(t)
     );
 
     const deleteTask = async (e: React.MouseEvent, tid: string) => {
@@ -105,6 +114,30 @@ export default function History() {
                         <RefreshCw size={18} className={cn(loading && "animate-spin")} />
                     </Button>
                 </div>
+            </div>
+
+            <div className="mb-6 flex flex-wrap gap-2">
+                {[
+                    { key: 'all', label: `全部 ${tasks.length}` },
+                    { key: 'active', label: `进行中 ${tasks.filter(task => task.status === 'running' || task.status === 'pending').length}` },
+                    { key: 'completed', label: `已完成 ${tasks.filter(task => task.status === 'completed').length}` },
+                    { key: 'failed', label: `已失败 ${tasks.filter(task => task.status === 'failed').length}` },
+                    { key: 'cancelled', label: `已终止 ${tasks.filter(task => task.status === 'cancelled' || task.status === 'stopped').length}` },
+                ].map((filter) => (
+                    <button
+                        key={filter.key}
+                        type="button"
+                        onClick={() => setStatusFilter(filter.key as typeof statusFilter)}
+                        className={cn(
+                            "rounded-full border px-3 py-1.5 text-xs font-bold transition-colors",
+                            statusFilter === filter.key
+                                ? "border-[#2383e2] bg-[#eef6ff] text-[#2383e2]"
+                                : "border-[#e9e9e8] bg-white text-[#787774] hover:bg-[#fafafa]"
+                        )}
+                    >
+                        {filter.label}
+                    </button>
+                ))}
             </div>
 
             {loading ? (
@@ -176,6 +209,17 @@ export default function History() {
                                             <h4 className="text-sm font-black text-[#37352f] line-clamp-1">
                                                 {task.type === 'algorithm_mining' ? '关联映射演算' : '非参数统计分析'}
                                             </h4>
+                                            <div className="mt-2 text-xs text-[#787774] space-y-1">
+                                                {(task.status === 'running' || task.status === 'pending') ? (
+                                                    <div>当前仍在执行，进度 {Number(task.progress ?? 0).toFixed(1)}%</div>
+                                                ) : task.status === 'completed' ? (
+                                                    <div>任务已正常结束{task.end_time ? ` · 完成于 ${formatDate(task.end_time)}` : ''}</div>
+                                                ) : task.status === 'failed' ? (
+                                                    <div className="text-red-600 line-clamp-2">{task.message || '执行过程中发生异常，任务已失败'}</div>
+                                                ) : (
+                                                    <div>任务已被终止{task.end_time ? ` · 终止于 ${formatDate(task.end_time)}` : ''}</div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 

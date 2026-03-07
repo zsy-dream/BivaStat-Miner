@@ -264,9 +264,14 @@ export interface TaskHistoryItem {
     task_id: string;
     status: TaskStatus;
     start_time: string;
+    end_time?: string;
+    updated_at?: string;
     type: string;
     rules_found: number;
     records: number;
+    progress?: number;
+    message?: string;
+    has_result?: boolean;
 }
 
 /** 雷达图数据项 */
