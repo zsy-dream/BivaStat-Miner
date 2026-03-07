@@ -39,11 +39,27 @@ def async_algorithm_task(task_id, manager):
         _check_cancel()
 
         # --- Step 1: 数据加载 ---
-        manager.update_task(task_id, step_update={'index': 0, 'status': 'running'}, logs=['开始加载原始数据集...'])
+        manager.update_task(
+            task_id,
+            step_update={'index': 0, 'status': 'running'},
+            progress=2,
+            metrics={
+                'processed_count': 0,
+                'total_count': 0,
+                'estimated_time_remaining': _eta(2)
+            },
+            logs=['任务已创建，正在准备计算资源...', '开始加载原始数据集...']
+        )
         
         if 'data_path' in params:
              # 关键修复：清洗后的数据可能是“虚拟路径”(xxx.cleaned)，只能从缓存取
              from models.data_model import get_data
+             manager.update_task(
+                 task_id,
+                 progress=5,
+                 metrics={'estimated_time_remaining': _eta(5)},
+                 logs=[f"正在读取数据源: {params['data_path']}"]
+             )
              df = get_data(params['data_path'])
         
         if df is None:
@@ -53,18 +69,24 @@ def async_algorithm_task(task_id, manager):
         manager.update_task(
             task_id,
             step_update={'index': 0, 'status': 'completed'},
-            progress=10,
+            progress=12,
             metrics={
                 'total_count': total_records,
                 'processed_count': 0,
-                'estimated_time_remaining': _eta(10)
+                'estimated_time_remaining': _eta(12)
             },
             logs=[f'数据加载完成，共 {total_records} 条记录']
         )
 
         # --- Step 2: 数据预处理 ---
         _check_cancel()
-        manager.update_task(task_id, step_update={'index': 1, 'status': 'running'}, logs=['开始数据预处理...'])
+        manager.update_task(
+            task_id,
+            step_update={'index': 1, 'status': 'running'},
+            progress=15,
+            metrics={'estimated_time_remaining': _eta(15)},
+            logs=['开始数据预处理...', '正在执行字段清洗、缺失值处理与类型识别...']
+        )
         
         chunk_size = max(1, total_records // 10) if total_records > 0 else 1
         for i in range(0, 5): 
@@ -73,7 +95,7 @@ def async_algorithm_task(task_id, manager):
             processed = (i + 1) * chunk_size
             process_mem_mb = round(psutil.Process().memory_info().rss / (1024**2), 1)
             mem_total_gb = round(psutil.virtual_memory().total / (1024**3), 1)
-            current_progress = 10 + i * 4
+            current_progress = 15 + i * 3
             manager.update_task(
                 task_id,
                 progress=current_progress,

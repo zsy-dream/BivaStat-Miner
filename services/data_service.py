@@ -3,6 +3,7 @@ import numpy as np
 from scipy import stats
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -126,12 +127,28 @@ class DataService:
         for column in df.columns:
             if df[column].dtype == 'object':
                 try:
-                    df[column] = pd.to_numeric(df[column], errors='ignore')
+                    raw_series = df[column]
+                    non_empty_mask = raw_series.notna() & raw_series.astype(str).str.strip().ne('')
+                    if non_empty_mask.any():
+                        numeric_series = pd.to_numeric(raw_series, errors='coerce')
+                        numeric_success = int(numeric_series[non_empty_mask].notna().sum())
+                        if numeric_success >= max(1, int(non_empty_mask.sum() * 0.8)):
+                            df[column] = numeric_series
+                            continue
                 except Exception:
                     pass
             if df[column].dtype == 'object':
                 try:
-                    df[column] = pd.to_datetime(df[column], errors='ignore')
+                    raw_series = df[column]
+                    non_empty_mask = raw_series.notna() & raw_series.astype(str).str.strip().ne('')
+                    if non_empty_mask.any():
+                        with warnings.catch_warnings():
+                            warnings.simplefilter('ignore', FutureWarning)
+                            warnings.simplefilter('ignore', UserWarning)
+                            datetime_series = pd.to_datetime(raw_series, errors='coerce')
+                        datetime_success = int(datetime_series[non_empty_mask].notna().sum())
+                        if datetime_success >= max(1, int(non_empty_mask.sum() * 0.8)):
+                            df[column] = datetime_series
                 except Exception:
                     pass
 
