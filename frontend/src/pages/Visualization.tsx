@@ -1265,7 +1265,7 @@ export default function Visualization() {
                                                 切换时会沿用当前浏览语境：{selectedType === 'network' ? '规则网络' : '规则推荐联动图'}。
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                             <button
                                                 type="button"
                                                 onClick={() => sourceNavigationInfo.previousRule && handleNavigateSourceRule(sourceNavigationInfo.previousRule)}
@@ -1314,9 +1314,9 @@ export default function Visualization() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 flex-1 min-h-0">
                 {/* 左侧控制栏 */}
-                <div className="lg:col-span-1 border border-[#e9e9e8] bg-[#fbfbfa] rounded-xl flex flex-col shrink-0 overflow-y-auto shadow-sm">
+                <div className="lg:col-span-1 border border-[#e9e9e8] bg-[#fbfbfa] rounded-xl flex flex-col shrink-0 overflow-y-auto shadow-sm max-h-none lg:max-h-[calc(100vh-180px)]">
                     <div className="p-4 border-b border-[#e9e9e8] bg-white text-[#37352f] font-bold flex items-center gap-2">
                         <Filter size={18} /> 图表配置面板
                     </div>
@@ -1344,7 +1344,7 @@ export default function Visualization() {
 
                         <div className="pt-4 border-t border-[#e9e9e8]">
                             <label className="text-xs font-semibold text-[#787774] mb-2 block uppercase tracking-wider">一键预设</label>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
                                 {[
                                     { id: 'correlation_overview', label: '相关总览' },
                                     { id: 'numeric_scatter', label: '散点关系' },
@@ -1493,9 +1493,9 @@ export default function Visualization() {
                 </div>
 
                 {/* 右侧展示区 */}
-                <div id="chart-wrap" ref={viewerRef} className="lg:col-span-3 bg-white border border-[#e9e9e8] rounded-xl relative flex flex-col overflow-hidden shadow-sm">
+                <div id="chart-wrap" ref={viewerRef} className="lg:col-span-3 bg-white border border-[#e9e9e8] rounded-xl relative flex flex-col overflow-hidden shadow-sm min-w-0">
                     {/* Header bar */}
-                    <div className="min-h-11 border-b border-[#e9e9e8] bg-[#fbfbfa] flex flex-col px-4 py-2 shrink-0 gap-2">
+                    <div className="min-h-11 border-b border-[#e9e9e8] bg-[#fbfbfa] flex flex-col px-3 sm:px-4 py-2 shrink-0 gap-2">
                         <div className="flex items-center gap-3 min-w-0">
                             <div className="flex gap-1.5 items-center shrink-0">
                                 <div className="w-3 h-3 rounded-full bg-red-400"></div>
@@ -1805,7 +1805,7 @@ export default function Visualization() {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-auto flex items-center justify-center p-6 bg-gradient-to-br from-white via-gray-50/40 to-blue-50/20 min-h-[500px]">
+                    <div className="flex-1 overflow-auto flex items-center justify-center p-3 sm:p-6 bg-gradient-to-br from-white via-gray-50/40 to-blue-50/20 min-h-[360px] sm:min-h-[500px]">
                         <AnimatePresence mode="wait">
                             {loading ? (
                                 <motion.div
@@ -1837,7 +1837,7 @@ export default function Visualization() {
                                         ref={iframeRef}
                                         title={chartTypes.find(c => c.id === selectedType)?.name || 'chart'}
                                         src={chartUrl}
-                                        className="w-full h-full min-h-[620px] border-0 bg-white rounded-lg"
+                                        className="w-full h-full min-h-[420px] sm:min-h-[620px] border-0 bg-white rounded-lg"
                                     />
                                 </motion.div>
                             ) : (

@@ -82,19 +82,19 @@ export default function History() {
     };
 
     return (
-        <div className="max-w-6xl mx-auto py-8 px-4 h-full flex flex-col">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-6">
-                <div className="flex items-center gap-4">
+        <div className="max-w-6xl mx-auto py-5 sm:py-8 px-2 sm:px-4 h-full flex flex-col">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 sm:mb-8 gap-4 sm:gap-6">
+                <div className="flex items-center gap-3 sm:gap-4">
                     <div className="bg-primary-50 p-3 rounded-2xl text-primary-600 shadow-sm border border-primary-100">
                         <HistoryIcon size={28} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-[#37352f]">历史任务</h1>
+                        <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#37352f]">历史任务</h1>
                         <p className="text-[#787774] text-sm mt-0.5 font-medium">持久化存储的所有算法演算历程</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#d3d3d3]" size={16} />
                         <input
@@ -160,7 +160,7 @@ export default function History() {
                     </Button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <AnimatePresence>
                         {filteredTasks.map((task, idx) => (
                             <motion.div

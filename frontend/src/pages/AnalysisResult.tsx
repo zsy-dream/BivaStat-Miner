@@ -520,7 +520,7 @@ export default function AnalysisResult() {
             : progressPercent;
 
         return (
-        <div className="max-w-5xl mx-auto py-6 px-4 h-full flex flex-col">
+        <div className="max-w-5xl mx-auto py-4 sm:py-6 px-1 sm:px-4 h-full flex flex-col">
                 <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="bg-[#2383e2]/10 p-2.5 rounded-xl text-[#2383e2] shrink-0">
@@ -531,11 +531,11 @@ export default function AnalysisResult() {
                             <p className="text-[#787774] text-xs sm:text-sm mt-0.5 break-all">UUID: <span className="font-mono">{taskId}</span></p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                         <button
                             onClick={() => handleAction('stop')}
                             disabled={stopping}
-                            className="p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded text-sm transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full sm:w-auto justify-center p-2.5 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded text-sm transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             title="强行终止销毁作业"
                         >
                             <StopCircle size={16} /> {stopping ? '终止中...' : '终止任务'}
@@ -543,22 +543,22 @@ export default function AnalysisResult() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mb-5 sm:mb-6">
                     {/* 指标监控卡片 */}
                     <div className="notion-card p-5 border-[#e9e9e8] bg-white flex flex-col justify-center relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-16 h-16 bg-[#2383e2]/5 rounded-bl-full pointer-events-none" />
                         <p className="text-xs text-[#787774] font-medium mb-1">系统作业进度占比</p>
                         <div className="flex items-end gap-2">
-                            <span className="text-3xl font-bold font-mono text-[#2383e2]">{(task.progress || 0).toFixed(1)}%</span>
+                            <span className="text-2xl sm:text-3xl font-bold font-mono text-[#2383e2]">{(task.progress || 0).toFixed(1)}%</span>
                         </div>
                     </div>
                     <div className="notion-card p-5 border-[#e9e9e8] bg-white flex flex-col justify-center">
                         <p className="text-xs text-[#787774] font-medium mb-1 flex items-center gap-1"><Clock size={12} /> 预测生命周期倒计时</p>
-                        <span className="text-3xl font-bold font-mono text-[#37352f]">{task.eta_seconds ? `${task.eta_seconds}s` : '计算中...'}</span>
+                        <span className="text-2xl sm:text-3xl font-bold font-mono text-[#37352f]">{task.eta_seconds ? `${task.eta_seconds}s` : '计算中...'}</span>
                     </div>
                     <div className="notion-card p-5 border-[#e9e9e8] bg-white flex flex-col justify-center">
                         <p className="text-xs text-[#787774] font-medium mb-1">节点内存占用水位</p>
-                        <span className="text-3xl font-bold font-mono text-[#ea5b5c]">
+                        <span className="text-2xl sm:text-3xl font-bold font-mono text-[#ea5b5c]">
                             {task.memory_usage !== undefined ? `${task.memory_usage.toFixed(1)} MB` : '—'}
                         </span>
                     </div>
@@ -567,13 +567,13 @@ export default function AnalysisResult() {
                 {/* 阶段穿梭轨道 */}
                 <div className="notion-card p-4 sm:p-6 bg-white border border-[#e9e9e8] mb-6 shadow-sm">
                     <h3 className="text-sm font-bold text-[#37352f] mb-4 sm:mb-6 flex items-center gap-2">执行拓扑管线阶段</h3>
-                    <div className="overflow-x-auto pb-2">
-                    <div className="flex items-center justify-between relative px-2 min-w-[480px]">
+                    <div className="overflow-x-auto pb-2 custom-scrollbar">
+                    <div className="flex items-center justify-between relative px-2 min-w-[360px] sm:min-w-[480px]">
                         <div className="absolute left-[3%] right-[3%] top-1/2 -translate-y-1/2 h-1 bg-[#efefee] -z-10 rounded-full"></div>
                         <div className="absolute left-[3%] top-1/2 -translate-y-1/2 h-1 bg-[#2383e2] -z-10 rounded-full transition-all duration-500" style={{ width: `${railFillPercent}%` }}></div>
 
                         {steps.map((step, idx) => (
-                            <div key={idx} className="flex flex-col items-center gap-3 w-32 relative">
+                            <div key={idx} className="flex flex-col items-center gap-2 sm:gap-3 w-20 sm:w-32 relative">
                                 {(() => {
                                     const stepStatus = normalizedSteps[idx]?.status
                                         ?? (idx < currentStepIndex ? 'completed' : idx === currentStepIndex ? 'running' : 'pending');
@@ -594,13 +594,13 @@ export default function AnalysisResult() {
                                     return (
                                         <>
                                 <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 font-mono text-sm shadow",
+                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 font-mono text-xs sm:text-sm shadow",
                                     nodeClass
-                                )}>
+                                ) + " text-[11px] sm:text-xs leading-relaxed"}>
                                     {stepStatus === 'completed' ? <CheckCircle2 size={16} /> : (idx + 1)}
                                 </div>
                                 <span className={cn(
-                                    "text-xs text-center transition-colors font-medium",
+                                    "text-[10px] sm:text-xs text-center transition-colors font-medium leading-snug",
                                     labelClass
                                 )}>{step}</span>
                                         </>
@@ -613,10 +613,10 @@ export default function AnalysisResult() {
                 </div>
 
                 {/* 黑客骇客终端打字机日志输出区 */}
-                <div className="notion-card border-[#e9e9e8] bg-[#0d1117] flex-1 flex flex-col min-h-[250px] overflow-hidden shadow-inner font-mono text-xs text-[#b3b1b5]">
-                    <div className="bg-[#161b22] px-4 py-2 border-b border-[#30363d] flex justify-between items-center text-[#787774] shrink-0 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" /> 系统标准输出日志 (STD_OUT)</span>
+                <div className="notion-card border-[#e9e9e8] bg-[#0d1117] flex-1 flex flex-col min-h-[220px] sm:min-h-[250px] overflow-hidden shadow-inner font-mono text-xs text-[#b3b1b5]">
+                    <div className="bg-[#161b22] px-3 sm:px-4 py-2 border-b border-[#30363d] flex flex-wrap justify-between items-center gap-2 text-[#787774] shrink-0 shadow-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <span className="flex items-center gap-1.5 min-w-0 truncate"><div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0" /> 系统标准输出日志 (STD_OUT)</span>
                         </div>
                         <div className="flex gap-1.5">
                             <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
@@ -624,10 +624,10 @@ export default function AnalysisResult() {
                             <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
                         </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-1.5 max-h-[400px]">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 max-h-[320px] sm:max-h-[400px] custom-scrollbar">
                         {logs.map((log, idx) => (
-                            <div key={idx} className="flex gap-3 hover:bg-[#161b22] px-1 rounded transition-colors break-words">
-                                <span className="text-[#30363d] select-none shrink-0 w-10 text-right">{String(idx + 1).padStart(3, '0')} |</span>
+                            <div key={idx} className="flex gap-2 sm:gap-3 hover:bg-[#161b22] px-1 rounded transition-colors break-words">
+                                <span className="text-[#30363d] select-none shrink-0 w-8 sm:w-10 text-right text-[10px] sm:text-xs">{String(idx + 1).padStart(3, '0')} |</span>
                                 <span className={cn(
                                     log.includes('ERROR') || log.includes('失败') ? 'text-red-400 font-medium' :
                                         log.includes('WARN') || log.includes('警告') ? 'text-yellow-400' :
@@ -639,7 +639,7 @@ export default function AnalysisResult() {
                             </div>
                         ))}
                         <div ref={logEndRef} className="h-4 pointer-events-none" />
-                        <div className="px-1 text-[#27c93f] animate-pulse">_ 引擎持续吞吐演算中...</div>
+                        <div className="px-1 text-[#27c93f] animate-pulse text-[11px] sm:text-xs">_ 引擎持续吞吐演算中...</div>
                     </div>
                 </div>
             </div>

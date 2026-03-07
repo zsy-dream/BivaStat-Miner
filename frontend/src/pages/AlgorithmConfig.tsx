@@ -439,7 +439,7 @@ export default function AlgorithmConfig() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-0 lg:min-w-[420px]">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-0">
                             <ReadinessMetricCard
                                 label="适配度"
                                 value={miningReadiness ? `${Math.round(miningReadiness.readiness_score)} 分` : '--'}
@@ -505,7 +505,7 @@ export default function AlgorithmConfig() {
             <div className="sticky bottom-0 pt-2 pb-1 bg-gradient-to-t from-[#fbfbfa] via-[#fbfbfa]/95 to-transparent">
                 <div className="max-w-4xl mx-auto w-full">
                     {runningTaskId && (
-                        <div className="mb-2 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-sm text-blue-800">
+                        <div className="mb-2 px-3 sm:px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-sm text-blue-800">
                             <RefreshCw size={14} className="animate-spin shrink-0 text-blue-500" />
                             <span className="flex-1">当前已有任务运行中（进度 {runningTaskProgress.toFixed(0)}%）</span>
                             <button
@@ -520,7 +520,7 @@ export default function AlgorithmConfig() {
                     <button
                         onClick={runAnalysis}
                         disabled={loading}
-                        className="w-full h-14 bg-[#37352f] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 hover:bg-black transition-all active:scale-[0.98] shadow-xl shadow-gray-400/30 group relative overflow-hidden disabled:bg-gray-400"
+                        className="w-full h-12 sm:h-14 bg-[#37352f] text-white rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 sm:gap-3 hover:bg-black transition-all active:scale-[0.98] shadow-xl shadow-gray-400/30 group relative overflow-hidden disabled:bg-gray-400"
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                         {loading ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}

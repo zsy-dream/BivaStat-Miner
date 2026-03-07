@@ -55,7 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Sidebar */}
             <aside className={cn(
-                "fixed md:static inset-y-0 left-0 z-50 w-56 md:w-[232px] flex flex-col border-r border-[#e9e9e8] bg-[#fbfbfa] h-full transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none",
+                "fixed md:static inset-y-0 left-0 z-50 w-[84vw] max-w-[232px] md:w-[232px] flex flex-col border-r border-[#e9e9e8] bg-[#fbfbfa] h-full transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none",
                 isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
             )}>
                 <div className="px-4 py-5 flex items-center gap-3">
@@ -128,7 +128,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden w-full max-w-full relative">
-                <header className="h-[52px] border-b border-[#e9e9e8] bg-white flex items-center justify-between px-6 z-10 shrink-0 shadow-sm shadow-black/5">
+                <header className="h-[52px] sm:h-[56px] border-b border-[#e9e9e8] bg-white flex items-center justify-between px-3 sm:px-4 md:px-6 z-10 shrink-0 shadow-sm shadow-black/5">
                     <div className="flex items-center gap-4">
                         <button
                             className="p-1.5 hover:bg-[#efefee] rounded-md md:hidden transition-colors"
@@ -136,10 +136,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         >
                             <Menu size={20} className="text-[#37352f]" />
                         </button>
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#b4b4b3] hidden sm:flex">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#b4b4b3] hidden sm:flex min-w-0">
                             <span className="hover:text-[#37352f] cursor-default transition-colors">工作空间</span>
                             <ChevronRight size={12} className="opacity-30" />
-                            <span className="text-[#37352f] bg-[#f5f5f4] px-2 py-0.5 rounded-md">{getCurrentPageLabel()}</span>
+                            <span className="text-[#37352f] bg-[#f5f5f4] px-2 py-0.5 rounded-md truncate max-w-[180px] md:max-w-none">{getCurrentPageLabel()}</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -195,7 +195,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-8 lg:p-10 bg-[#fbfbfa] w-full overflow-x-hidden">
+                <main className="flex-1 overflow-y-auto p-2.5 sm:p-4 md:p-8 lg:p-10 bg-[#fbfbfa] w-full overflow-x-hidden">
                     {children}
                 </main>
             </div>
