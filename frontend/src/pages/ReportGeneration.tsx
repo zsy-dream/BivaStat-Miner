@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import {
     FileText, Download, CheckCircle, Briefcase, RefreshCw, Presentation, MonitorCheck, LayoutTemplate, Brain
 } from 'lucide-react';
@@ -23,6 +25,10 @@ export default function ReportGeneration() {
     const [statusText, setStatusText] = useState('');
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+
+    const [searchParams] = useSearchParams();
+    const taskId = searchParams.get('task_id');
+
 
     const [form, setForm] = useState<ReportForm>({
         title: '',
@@ -78,8 +84,14 @@ export default function ReportGeneration() {
             : '正在搜集后台算法流水数据并整合图表快照...');
 
         try {
-            const payload = { ...form, title: form.title.trim(), use_ai_summary: useAiSummary };
+            const payload = {
+                ...form,
+                title: form.title.trim(),
+                use_ai_summary: useAiSummary,
+                task_id: taskId
+            };
             const res = await reportService.generateReport(payload);
+
 
             if (res.success && res.report_id) {
                 setStatusText('文档编排成功！正在拉取文件...');
@@ -179,10 +191,10 @@ export default function ReportGeneration() {
                             aiStatus === 'checking'
                                 ? "bg-slate-50 border-slate-200 text-slate-900"
                                 : useAiSummary && aiAvailable
-                                ? "bg-gradient-to-r from-[#37352f] to-[#25242a] border-transparent text-white shadow-lg shadow-black/10"
-                                : aiAvailable
-                                    ? "bg-[#f8fafc] border-[#e9eef5] text-[#37352f]"
-                                    : "bg-amber-50 border-amber-200 text-amber-900"
+                                    ? "bg-gradient-to-r from-[#37352f] to-[#25242a] border-transparent text-white shadow-lg shadow-black/10"
+                                    : aiAvailable
+                                        ? "bg-[#f8fafc] border-[#e9eef5] text-[#37352f]"
+                                        : "bg-amber-50 border-amber-200 text-amber-900"
                         )}>
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex items-start gap-3">
@@ -191,10 +203,10 @@ export default function ReportGeneration() {
                                         aiStatus === 'checking'
                                             ? "bg-white border-slate-200"
                                             : useAiSummary && aiAvailable
-                                            ? "bg-emerald-400/20 border-emerald-400/30"
-                                            : aiAvailable
-                                                ? "bg-white border-[#dfe7f1]"
-                                                : "bg-white/80 border-amber-200"
+                                                ? "bg-emerald-400/20 border-emerald-400/30"
+                                                : aiAvailable
+                                                    ? "bg-white border-[#dfe7f1]"
+                                                    : "bg-white/80 border-amber-200"
                                     )}>
                                         <Brain size={18} className={aiStatus === 'checking' ? "text-slate-500" : useAiSummary && aiAvailable ? "text-emerald-400" : aiAvailable ? "text-[#2383e2]" : "text-amber-600"} />
                                     </div>
@@ -206,10 +218,10 @@ export default function ReportGeneration() {
                                                 aiStatus === 'checking'
                                                     ? "bg-slate-200 text-slate-700"
                                                     : useAiSummary && aiAvailable
-                                                    ? "bg-emerald-500 text-white"
-                                                    : aiAvailable
-                                                        ? "bg-[#e9eef5] text-[#57738e]"
-                                                        : "bg-amber-100 text-amber-700"
+                                                        ? "bg-emerald-500 text-white"
+                                                        : aiAvailable
+                                                            ? "bg-[#e9eef5] text-[#57738e]"
+                                                            : "bg-amber-100 text-amber-700"
                                             )}>
                                                 {aiStatus === 'checking' ? '检测中' : aiAvailable ? 'DeepSeek' : '暂不可用'}
                                             </span>
@@ -219,16 +231,16 @@ export default function ReportGeneration() {
                                             aiStatus === 'checking'
                                                 ? "text-slate-600"
                                                 : useAiSummary && aiAvailable
-                                                ? "text-gray-400"
-                                                : aiAvailable
-                                                    ? "text-[#787774]"
-                                                    : "text-amber-700/90"
+                                                    ? "text-gray-400"
+                                                    : aiAvailable
+                                                        ? "text-[#787774]"
+                                                        : "text-amber-700/90"
                                         )}>
                                             {aiStatus === 'checking'
                                                 ? '正在检测 AI 摘要服务状态，请稍等片刻；检测完成后会自动更新是否可开启。'
                                                 : aiAvailable
-                                                ? '控制本次导出报告是否附带 AI 执行摘要；不代表该任务之前是否已经生成过 AI 解读记录。'
-                                                : '这不是“功能消失”，只是当前前端暂时没拿到可用状态；你可以重新检测，恢复后即可直接开启。'}
+                                                    ? '控制本次导出报告是否附带 AI 执行摘要；不代表该任务之前是否已经生成过 AI 解读记录。'
+                                                    : '这不是“功能消失”，只是当前前端暂时没拿到可用状态；你可以重新检测，恢复后即可直接开启。'}
                                         </div>
                                     </div>
                                 </div>
@@ -260,10 +272,10 @@ export default function ReportGeneration() {
                                             aiStatus === 'checking'
                                                 ? "border-slate-200 bg-white/80 text-slate-500"
                                                 : useAiSummary && aiAvailable
-                                                ? "border-white/10 bg-white/5 text-gray-100"
-                                                : aiAvailable
-                                                    ? "border-[#e9eef5] bg-white text-[#556274]"
-                                                    : "border-amber-200 bg-white/70 text-amber-800"
+                                                    ? "border-white/10 bg-white/5 text-gray-100"
+                                                    : aiAvailable
+                                                        ? "border-[#e9eef5] bg-white text-[#556274]"
+                                                        : "border-amber-200 bg-white/70 text-amber-800"
                                         )}
                                     >
                                         {item}
@@ -276,16 +288,16 @@ export default function ReportGeneration() {
                                 aiStatus === 'checking'
                                     ? "text-slate-600"
                                     : useAiSummary && aiAvailable
-                                    ? "text-gray-400"
-                                    : aiAvailable
-                                        ? "text-[#8a94a3]"
-                                        : "text-amber-700/80"
+                                        ? "text-gray-400"
+                                        : aiAvailable
+                                            ? "text-[#8a94a3]"
+                                            : "text-amber-700/80"
                             )}>
                                 {aiStatus === 'checking'
                                     ? '如果检测成功，你可以在这里自主选择是否把 AI 执行摘要加入最终报告。'
                                     : aiAvailable
-                                    ? '开启后仅影响这一次导出的最终报告；分析结果页或历史记录里已有的 AI 解读是否存在，和这里不是一回事。'
-                                    : '当前仍可生成常规报告；待 AI 服务可用后，你可以在这里自主选择是否把 AI 执行摘要加入最终报告。'}
+                                        ? '开启后仅影响这一次导出的最终报告；分析结果页或历史记录里已有的 AI 解读是否存在，和这里不是一回事。'
+                                        : '当前仍可生成常规报告；待 AI 服务可用后，你可以在这里自主选择是否把 AI 执行摘要加入最终报告。'}
                             </div>
 
                             {aiStatus !== 'available' && (
@@ -337,7 +349,7 @@ export default function ReportGeneration() {
 
                         {error && (
                             <div className="p-3 bg-red-50 text-red-600 rounded-md border border-red-100 flex items-start gap-2 text-xs leading-relaxed">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                 {error}
                             </div>
                         )}

@@ -80,27 +80,54 @@ def generate_report():
     try:
         # 强制刷新报告服务模块，避免长生命周期进程持有旧函数对象
         importlib.reload(report_service_module)
-        # 1. 检查是否有分析结果
-        analysis_results = global_state.get_results('latest_analysis')
+        # 1. 获取请求参数
+        req_data = request.get_json() or {}
+        task_id = req_data.get('task_id')
+        
+        # 2. 检查是否有分析结果 (优先从指定任务中取，其次从全局状态取)
+        analysis_results = None
+        task = None
+        if task_id:
+            from utils.task_manager import task_manager
+            task = task_manager.get_task(task_id)
+            if task and task.get('result'):
+                analysis_results = task['result']
+                logger.info(f"正在为历史任务 {task_id} 生成分析报告")
+        
         if not analysis_results:
+            analysis_results = global_state.get_results('latest_analysis')
+            logger.info("正在为最近一次会话结果生成分析报告")
+
+        if not analysis_results:
+
             return jsonify({
                 'success': False,
                 'error': '暂无分析数据！请先点击【运行算法】。'
             }), 400
 
-        # 2. 准备数据
-        req_data = request.get_json() or {}
+        # 3. 准备报告数据
         report_data = analysis_results.copy()
-        report_data.update(req_data)  # 合并标题
+        report_data.update(req_data)  # 合并标题等表单数据
         template_type = req_data.get('templateType') or req_data.get('template_type') or 'general_analysis'
+
         include_ai_summary = bool(req_data.get('use_ai_summary'))
         report_data['include_ai_summary'] = include_ai_summary
 
-        # 2.1 注入真实的数据集信息（关键修复：否则报告里 shape/记录数全是 0）
+        # 3.1 注入真实的数据集信息 (优先从原任务数据路径加载)
         data_info = {}
         try:
-            df = data_model_instance.current_data
+            df = None
+            if task and task.get('params', {}).get('data_path'):
+                from models.data_model import get_data
+                data_path = task['params']['data_path']
+                if os.path.exists(data_path):
+                    df = get_data(data_path)
+            
+            if df is None:
+                df = data_model_instance.current_data
+
             if df is not None:
+
                 numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
                 categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
                 data_info = {

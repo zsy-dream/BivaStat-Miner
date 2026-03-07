@@ -711,7 +711,8 @@ export default function Visualization() {
             const downloadFilename = buildChartFilename(format);
             const payload = {
                 chart_type: selectedType,
-                use_current_data: true,
+                use_current_data: !sourceTaskId,
+                task_id: sourceTaskId || undefined,
                 x_col: config.x_col,
                 y_col: config.y_col || undefined,
                 column: config.x_col,
@@ -985,7 +986,8 @@ export default function Visualization() {
         try {
             const payload = {
                 chart_type: activeType,
-                use_current_data: true,
+                use_current_data: !sourceTaskId,
+                task_id: sourceTaskId || undefined,
                 x_col: activeConfig.x_col,
                 y_col: activeConfig.y_col || undefined,
                 column: activeConfig.x_col,

@@ -252,7 +252,7 @@ export default function AnalysisResult() {
             .then(res => {
                 setLastTaskSnapshot(res.success ? (res.task ?? null) : null);
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setAutoLoading(false));
     }, [taskId]);
 
@@ -520,7 +520,7 @@ export default function AnalysisResult() {
             : progressPercent;
 
         return (
-        <div className="max-w-5xl mx-auto py-4 sm:py-6 px-1 sm:px-4 h-full flex flex-col">
+            <div className="max-w-5xl mx-auto py-4 sm:py-6 px-1 sm:px-4 h-full flex flex-col">
                 <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="bg-[#2383e2]/10 p-2.5 rounded-xl text-[#2383e2] shrink-0">
@@ -568,47 +568,47 @@ export default function AnalysisResult() {
                 <div className="notion-card p-4 sm:p-6 bg-white border border-[#e9e9e8] mb-6 shadow-sm">
                     <h3 className="text-sm font-bold text-[#37352f] mb-4 sm:mb-6 flex items-center gap-2">执行拓扑管线阶段</h3>
                     <div className="overflow-x-auto pb-2 custom-scrollbar">
-                    <div className="flex items-center justify-between relative px-2 min-w-[360px] sm:min-w-[480px]">
-                        <div className="absolute left-[3%] right-[3%] top-1/2 -translate-y-1/2 h-1 bg-[#efefee] -z-10 rounded-full"></div>
-                        <div className="absolute left-[3%] top-1/2 -translate-y-1/2 h-1 bg-[#2383e2] -z-10 rounded-full transition-all duration-500" style={{ width: `${railFillPercent}%` }}></div>
+                        <div className="flex items-center justify-between relative px-2 min-w-[360px] sm:min-w-[480px]">
+                            <div className="absolute left-[3%] right-[3%] top-1/2 -translate-y-1/2 h-1 bg-[#efefee] -z-10 rounded-full"></div>
+                            <div className="absolute left-[3%] top-1/2 -translate-y-1/2 h-1 bg-[#2383e2] -z-10 rounded-full transition-all duration-500" style={{ width: `${railFillPercent}%` }}></div>
 
-                        {steps.map((step, idx) => (
-                            <div key={idx} className="flex flex-col items-center gap-2 sm:gap-3 w-20 sm:w-32 relative">
-                                {(() => {
-                                    const stepStatus = normalizedSteps[idx]?.status
-                                        ?? (idx < currentStepIndex ? 'completed' : idx === currentStepIndex ? 'running' : 'pending');
-                                    const nodeClass = stepStatus === 'completed'
-                                        ? "bg-[#2383e2] text-white border-2 border-transparent scale-100"
-                                        : stepStatus === 'running'
-                                            ? "bg-white text-[#2383e2] border-[3px] border-[#2383e2] scale-110 shadow-[0_0_15px_rgba(35,131,226,0.3)]"
-                                            : stepStatus === 'failed' || stepStatus === 'cancelled'
-                                                ? "bg-white text-red-500 border-[3px] border-red-400 scale-105 shadow-[0_0_12px_rgba(239,68,68,0.2)]"
-                                                : "bg-white text-[#d3d3d3] border-2 border-[#e9e9e8] scale-100";
-                                    const labelClass = stepStatus === 'completed'
-                                        ? "text-[#37352f] opacity-80"
-                                        : stepStatus === 'running'
-                                            ? "text-[#2383e2] font-semibold"
-                                            : stepStatus === 'failed' || stepStatus === 'cancelled'
-                                                ? "text-red-500 font-semibold"
-                                                : "text-[#d3d3d3]";
-                                    return (
-                                        <>
-                                <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 font-mono text-xs sm:text-sm shadow",
-                                    nodeClass
-                                ) + " text-[11px] sm:text-xs leading-relaxed"}>
-                                    {stepStatus === 'completed' ? <CheckCircle2 size={16} /> : (idx + 1)}
+                            {steps.map((step, idx) => (
+                                <div key={idx} className="flex flex-col items-center gap-2 sm:gap-3 w-20 sm:w-32 relative">
+                                    {(() => {
+                                        const stepStatus = normalizedSteps[idx]?.status
+                                            ?? (idx < currentStepIndex ? 'completed' : idx === currentStepIndex ? 'running' : 'pending');
+                                        const nodeClass = stepStatus === 'completed'
+                                            ? "bg-[#2383e2] text-white border-2 border-transparent scale-100"
+                                            : stepStatus === 'running'
+                                                ? "bg-white text-[#2383e2] border-[3px] border-[#2383e2] scale-110 shadow-[0_0_15px_rgba(35,131,226,0.3)]"
+                                                : stepStatus === 'failed' || stepStatus === 'cancelled'
+                                                    ? "bg-white text-red-500 border-[3px] border-red-400 scale-105 shadow-[0_0_12px_rgba(239,68,68,0.2)]"
+                                                    : "bg-white text-[#d3d3d3] border-2 border-[#e9e9e8] scale-100";
+                                        const labelClass = stepStatus === 'completed'
+                                            ? "text-[#37352f] opacity-80"
+                                            : stepStatus === 'running'
+                                                ? "text-[#2383e2] font-semibold"
+                                                : stepStatus === 'failed' || stepStatus === 'cancelled'
+                                                    ? "text-red-500 font-semibold"
+                                                    : "text-[#d3d3d3]";
+                                        return (
+                                            <>
+                                                <div className={cn(
+                                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 font-mono text-xs sm:text-sm shadow",
+                                                    nodeClass
+                                                ) + " text-[11px] sm:text-xs leading-relaxed"}>
+                                                    {stepStatus === 'completed' ? <CheckCircle2 size={16} /> : (idx + 1)}
+                                                </div>
+                                                <span className={cn(
+                                                    "text-[10px] sm:text-xs text-center transition-colors font-medium leading-snug",
+                                                    labelClass
+                                                )}>{step}</span>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
-                                <span className={cn(
-                                    "text-[10px] sm:text-xs text-center transition-colors font-medium leading-snug",
-                                    labelClass
-                                )}>{step}</span>
-                                        </>
-                                    );
-                                })()}
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -981,36 +981,36 @@ export default function AnalysisResult() {
                         <div className="flex-1">
                             <div className="rounded-2xl border border-white/10 bg-black/10 p-5">
                                 <div className="flex items-start gap-4">
-                                <div className="bg-emerald-400/20 p-4 rounded-2xl border border-emerald-400/30 shrink-0">
-                                    <Sparkles className="text-emerald-400 w-8 h-8" />
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">
-                                            ai overview
-                                        </span>
-                                        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black", aiOverviewStatus.badgeClassName)}>
-                                            {aiOverviewStatus.label}
-                                        </span>
-                                        <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-black text-gray-300">
-                                            Rules + Stats
-                                        </span>
+                                    <div className="bg-emerald-400/20 p-4 rounded-2xl border border-emerald-400/30 shrink-0">
+                                        <Sparkles className="text-emerald-400 w-8 h-8" />
                                     </div>
-                                    <h2 className="mt-3 text-2xl font-black tracking-tight text-white">
-                                        {aiInsightTitle}
-                                    </h2>
-                                    <p className="mt-2 text-sm leading-relaxed text-gray-300/90">{aiInsightContent}</p>
-                                    <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
-                                            <Zap size={12} />
-                                            关键提示
+                                    <div className="flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">
+                                                ai overview
+                                            </span>
+                                            <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black", aiOverviewStatus.badgeClassName)}>
+                                                {aiOverviewStatus.label}
+                                            </span>
+                                            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-black text-gray-300">
+                                                Rules + Stats
+                                            </span>
                                         </div>
-                                        <div className="mt-1 text-[12px] leading-relaxed text-emerald-200/90">
-                                            {aiInsightHighlight}
+                                        <h2 className="mt-3 text-2xl font-black tracking-tight text-white">
+                                            {aiInsightTitle}
+                                        </h2>
+                                        <p className="mt-2 text-sm leading-relaxed text-gray-300/90">{aiInsightContent}</p>
+                                        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
+                                                <Zap size={12} />
+                                                关键提示
+                                            </div>
+                                            <div className="mt-1 text-[12px] leading-relaxed text-emerald-200/90">
+                                                {aiInsightHighlight}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
                             </div>
 
                             <div className="mt-4 grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -1306,7 +1306,7 @@ export default function AnalysisResult() {
                     <Button variant="outline" size="sm" onClick={() => navigate('/visualization?preset=correlation_overview')}>
                         <BarChart3 size={14} /> 可视化
                     </Button>
-                    <Button size="sm" onClick={() => navigate('/report')}>
+                    <Button size="sm" onClick={() => navigate(`/report${taskId ? `?taskId=${taskId}` : ''}`)}>
                         <FileCode size={14} />
                         生成报告
                     </Button>
@@ -1335,7 +1335,7 @@ export default function AnalysisResult() {
                                     <button
                                         type="button"
                                         onClick={() => navigate(buildVisualizationUrl(focusedReturnRule, 'auto'))}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2383e2] transition-all hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 active:scale-[0.97]"
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2383e2] transition-all hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 active:scale-[0.97]"
                                     >
                                         <BarChart3 size={12} />
                                         继续查看关系图
@@ -1495,136 +1495,137 @@ export default function AnalysisResult() {
                             const quickBrowseLabel = hasRulePair(r) ? '查看关系图' : '进入规则网络';
                             const QuickBrowseIcon = hasRulePair(r) ? BarChart3 : Activity;
                             return (
-                            <div
-                                key={idx}
-                                ref={(node) => { ruleCardRefs.current[ruleKey] = node; }}
-                                className={cn(
-                                    "group/rule relative flex flex-col gap-2 overflow-visible rounded-xl border px-3 py-3 transition-all duration-300 ease-out",
-                                    isFocused
-                                        ? "border-[#bfdbfe] bg-blue-50/60 ring-2 ring-[#2383e2] ring-offset-2 shadow-[0_16px_40px_rgba(35,131,226,0.14)]"
-                                        : "border-transparent bg-white/70 hover:-translate-y-0.5 hover:border-[#dbe7ff] hover:bg-white hover:shadow-[0_12px_30px_rgba(35,131,226,0.08)] focus-within:border-[#dbe7ff] focus-within:bg-white focus-within:shadow-[0_12px_30px_rgba(35,131,226,0.08)]"
-                                )}
-                            >
-                                <div className={cn(
-                                    "pointer-events-none absolute left-3 right-3 top-0 h-[3px] rounded-full bg-gradient-to-r from-[#2383e2] via-[#60a5fa] to-[#a78bfa] transition-all duration-300 ease-out",
-                                    isFocused ? "opacity-100" : "opacity-0 group-hover/rule:opacity-100 group-focus-within/rule:opacity-100"
-                                )} />
-                                <div className={cn(
-                                    "pointer-events-none absolute right-3 -top-3.5 z-10 flex max-w-[calc(100%-1.5rem)] origin-top-right items-center justify-end transition-all duration-300 ease-out",
-                                    isFocused
-                                        ? "translate-y-0 scale-100 opacity-100"
-                                        : "scale-95 opacity-0 -translate-y-1 group-hover/rule:scale-100 group-hover/rule:opacity-100 group-hover/rule:translate-y-0 group-focus-within/rule:scale-100 group-focus-within/rule:opacity-100 group-focus-within/rule:translate-y-0"
-                                )}>
-                                    <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/90 bg-white/92 px-1.5 py-1 shadow-[0_10px_28px_rgba(35,131,226,0.14)] backdrop-blur-md transition-all duration-300 ease-out group-hover/rule:shadow-[0_14px_32px_rgba(35,131,226,0.16)] group-focus-within/rule:shadow-[0_14px_32px_rgba(35,131,226,0.16)] max-[420px]:gap-0.5 max-[420px]:px-1 max-[420px]:py-0.5">
-                                        <QuickActionButton
-                                            icon={QuickBrowseIcon}
-                                            label={quickBrowseLabel}
-                                            onClick={() => navigate(buildVisualizationUrl(r, quickBrowseMode))}
-                                            accentClassName={hasRulePair(r) ? "text-[#2383e2] hover:bg-[#edf5ff]" : "text-violet-700 hover:bg-violet-50"}
-                                        />
-                                        <QuickActionButton
-                                            icon={Copy}
-                                            label="复制规则摘要"
-                                            onClick={() => { void handleCopyRuleSummary(r); }}
-                                            accentClassName="text-emerald-700 hover:bg-emerald-50"
-                                        />
-                                        <QuickActionButton
-                                            icon={Link2}
-                                            label="复制联动链接"
-                                            onClick={() => { void handleCopyVisualizationLink(r, quickBrowseMode); }}
-                                            accentClassName="text-violet-700 hover:bg-violet-50"
-                                        />
-                                    </div>
-                                </div>
-                                {isFocused && (
-                                    <div className="flex items-center justify-between px-0.5">
-                                        <span className="inline-flex items-center rounded-full bg-[#eef6ff] px-2.5 py-1 text-[10px] font-black text-[#2383e2] shadow-sm">
-                                            系统定位
-                                        </span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between text-xs font-semibold px-0.5">
-                                    <span className="text-[#37352f] truncate flex-1 leading-relaxed border border-gray-100 bg-white px-2 py-0.5 rounded shadow-sm mr-2" title={`${r.antecedents.join(' AND ')}  ==>  ${r.consequents.join(' AND ')}`}>
-                                        <span className="text-[#ea5b5c] font-mono mx-1">if</span> {r.antecedents.join(' & ')}
-                                        <span className="text-[#2383e2] font-mono mx-2">then</span> {r.consequents.join(' & ')}
-                                    </span>
-                                    <span className={cn(
-                                        "w-24 shrink-0 rounded-lg px-2.5 py-0.5 text-right font-mono transition-all duration-300 ease-out",
+                                <div
+                                    key={idx}
+                                    ref={(node) => { ruleCardRefs.current[ruleKey] = node; }}
+                                    className={cn(
+                                        "group/rule relative flex flex-col gap-2 overflow-visible rounded-xl border px-3 py-3 transition-all duration-300 ease-out",
                                         isFocused
-                                            ? "bg-[#e8f2ff] text-[#1d4ed8] shadow-sm"
-                                            : "bg-[#efefee] text-[#787774] group-hover/rule:bg-[#eef6ff] group-hover/rule:text-[#1d4ed8] group-hover/rule:shadow-sm group-focus-within/rule:bg-[#eef6ff] group-focus-within/rule:text-[#1d4ed8] group-focus-within/rule:shadow-sm"
+                                            ? "border-[#bfdbfe] bg-blue-50/60 ring-2 ring-[#2383e2] ring-offset-2 shadow-[0_16px_40px_rgba(35,131,226,0.14)]"
+                                            : "border-transparent bg-white/70 hover:-translate-y-0.5 hover:border-[#dbe7ff] hover:bg-white hover:shadow-[0_12px_30px_rgba(35,131,226,0.08)] focus-within:border-[#dbe7ff] focus-within:bg-white focus-within:shadow-[0_12px_30px_rgba(35,131,226,0.08)]"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "pointer-events-none absolute left-3 right-3 top-0 h-[3px] rounded-full bg-gradient-to-r from-[#2383e2] via-[#60a5fa] to-[#a78bfa] transition-all duration-300 ease-out",
+                                        isFocused ? "opacity-100" : "opacity-0 group-hover/rule:opacity-100 group-focus-within/rule:opacity-100"
+                                    )} />
+                                    <div className={cn(
+                                        "pointer-events-none absolute right-3 -top-3.5 z-10 flex max-w-[calc(100%-1.5rem)] origin-top-right items-center justify-end transition-all duration-300 ease-out",
+                                        isFocused
+                                            ? "translate-y-0 scale-100 opacity-100"
+                                            : "scale-95 opacity-0 -translate-y-1 group-hover/rule:scale-100 group-hover/rule:opacity-100 group-hover/rule:translate-y-0 group-focus-within/rule:scale-100 group-focus-within/rule:opacity-100 group-focus-within/rule:translate-y-0"
                                     )}>
-                                        Lift {r.lift.toFixed(2)}
-                                    </span>
-                                </div>
-                                <div className={cn(
-                                    "flex h-2.5 w-full items-center overflow-hidden rounded-full bg-[#efefee] shadow-inner transition-all duration-300 ease-out",
-                                    isFocused ? "ring-1 ring-[#bfdbfe]" : "group-hover/rule:ring-1 group-hover/rule:ring-[#dbe7ff] group-focus-within/rule:ring-1 group-focus-within/rule:ring-[#dbe7ff]"
-                                )}>
-                                    <div
-                                        className="relative h-full transition-all duration-700 delay-75"
-                                        style={{ width: `${Math.min((r.lift / 10) * 100, 100)}%` }}
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-[#2383e2] to-[#40a3ff]"></div>
-                                        <div className="absolute top-0 right-0 bottom-0 w-4 bg-gradient-to-l from-white/30 to-transparent"></div>
+                                        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/90 bg-white/92 px-1.5 py-1 shadow-[0_10px_28px_rgba(35,131,226,0.14)] backdrop-blur-md transition-all duration-300 ease-out group-hover/rule:shadow-[0_14px_32px_rgba(35,131,226,0.16)] group-focus-within/rule:shadow-[0_14px_32px_rgba(35,131,226,0.16)] max-[420px]:gap-0.5 max-[420px]:px-1 max-[420px]:py-0.5">
+                                            <QuickActionButton
+                                                icon={QuickBrowseIcon}
+                                                label={quickBrowseLabel}
+                                                onClick={() => navigate(buildVisualizationUrl(r, quickBrowseMode))}
+                                                accentClassName={hasRulePair(r) ? "text-[#2383e2] hover:bg-[#edf5ff]" : "text-violet-700 hover:bg-violet-50"}
+                                            />
+                                            <QuickActionButton
+                                                icon={Copy}
+                                                label="复制规则摘要"
+                                                onClick={() => { void handleCopyRuleSummary(r); }}
+                                                accentClassName="text-emerald-700 hover:bg-emerald-50"
+                                            />
+                                            <QuickActionButton
+                                                icon={Link2}
+                                                label="复制联动链接"
+                                                onClick={() => { void handleCopyVisualizationLink(r, quickBrowseMode); }}
+                                                accentClassName="text-violet-700 hover:bg-violet-50"
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
-                                    <div className="flex items-center gap-2 text-[10px] text-[#9b9a97] px-0.5">
-                                        <span className="inline-flex items-center rounded-full border border-[#e8eefc] bg-[#f8fbff] px-2 py-0.5 font-bold text-[#2383e2]">
-                                            <span className="max-[420px]:hidden">高频快捷 / 更多菜单</span>
-                                            <span className="hidden max-[420px]:inline">快捷</span>
+                                    {isFocused && (
+                                        <div className="flex items-center justify-between px-0.5">
+                                            <span className="inline-flex items-center rounded-full bg-[#eef6ff] px-2.5 py-1 text-[10px] font-black text-[#2383e2] shadow-sm">
+                                                系统定位
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between text-xs font-semibold px-0.5">
+                                        <span className="text-[#37352f] truncate flex-1 leading-relaxed border border-gray-100 bg-white px-2 py-0.5 rounded shadow-sm mr-2" title={`${r.antecedents.join(' AND ')}  ==>  ${r.consequents.join(' AND ')}`}>
+                                            <span className="text-[#ea5b5c] font-mono mx-1">if</span> {r.antecedents.join(' & ')}
+                                            <span className="text-[#2383e2] font-mono mx-2">then</span> {r.consequents.join(' & ')}
+                                        </span>
+                                        <span className={cn(
+                                            "w-24 shrink-0 rounded-lg px-2.5 py-0.5 text-right font-mono transition-all duration-300 ease-out",
+                                            isFocused
+                                                ? "bg-[#e8f2ff] text-[#1d4ed8] shadow-sm"
+                                                : "bg-[#efefee] text-[#787774] group-hover/rule:bg-[#eef6ff] group-hover/rule:text-[#1d4ed8] group-hover/rule:shadow-sm group-focus-within/rule:bg-[#eef6ff] group-focus-within/rule:text-[#1d4ed8] group-focus-within/rule:shadow-sm"
+                                        )}>
+                                            Lift {r.lift.toFixed(2)}
                                         </span>
                                     </div>
-                                    <RuleActionGuide />
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button
-                                                type="button"
-                                                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[#dbe7ff] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#4f4e49] shadow-sm hover:bg-[#f8fbff] transition-colors max-[420px]:gap-1 max-[420px]:px-2.5"
-                                            >
-                                                <BarChart3 size={12} />
-                                                <span className="max-[420px]:hidden">更多</span>
-                                                <ChevronDown size={12} className="max-[420px]:hidden" />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="w-52">
-                                            <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
-                                                浏览
-                                            </DropdownMenuItem>
-                                            {hasRulePair(r) && (
-                                                <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'auto'))}>
-                                                    <BarChart3 size={14} className="text-blue-600" />
-                                                    查看关系图
+                                    <div className={cn(
+                                        "flex h-2.5 w-full items-center overflow-hidden rounded-full bg-[#efefee] shadow-inner transition-all duration-300 ease-out",
+                                        isFocused ? "ring-1 ring-[#bfdbfe]" : "group-hover/rule:ring-1 group-hover/rule:ring-[#dbe7ff] group-focus-within/rule:ring-1 group-focus-within/rule:ring-[#dbe7ff]"
+                                    )}>
+                                        <div
+                                            className="relative h-full transition-all duration-700 delay-75"
+                                            style={{ width: `${Math.min((r.lift / 10) * 100, 100)}%` }}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-r from-[#2383e2] to-[#40a3ff]"></div>
+                                            <div className="absolute top-0 right-0 bottom-0 w-4 bg-gradient-to-l from-white/30 to-transparent"></div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        <div className="flex items-center gap-2 text-[10px] text-[#9b9a97] px-0.5">
+                                            <span className="inline-flex items-center rounded-full border border-[#e8eefc] bg-[#f8fbff] px-2 py-0.5 font-bold text-[#2383e2]">
+                                                <span className="max-[420px]:hidden">高频快捷 / 更多菜单</span>
+                                                <span className="hidden max-[420px]:inline">快捷</span>
+                                            </span>
+                                        </div>
+                                        <RuleActionGuide />
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[#dbe7ff] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#4f4e49] shadow-sm hover:bg-[#f8fbff] transition-colors max-[420px]:gap-1 max-[420px]:px-2.5"
+                                                >
+                                                    <BarChart3 size={12} />
+                                                    <span className="max-[420px]:hidden">更多</span>
+                                                    <ChevronDown size={12} className="max-[420px]:hidden" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-52">
+                                                <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
+                                                    浏览
                                                 </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'network'))}>
-                                                <BarChart3 size={14} className="text-purple-600" />
-                                                进入规则网络
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
-                                                复制
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => { void handleCopyRuleSummary(r); }}>
-                                                <Copy size={14} className="text-emerald-600" />
-                                                复制规则摘要
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => { void handleCopyVisualizationLink(r, hasRulePair(r) ? 'auto' : 'network'); }}>
-                                                <Link2 size={14} className="text-sky-600" />
-                                                复制联动链接
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
-                                                分享
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => { void handleCopyRuleShare(r); }}>
-                                                <Copy size={14} className="text-violet-600" />
-                                                复制摘要和链接
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                                {hasRulePair(r) && (
+                                                    <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'auto'))}>
+                                                        <BarChart3 size={14} className="text-blue-600" />
+                                                        查看关系图
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'network'))}>
+                                                    <BarChart3 size={14} className="text-purple-600" />
+                                                    进入规则网络
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
+                                                    复制
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => { void handleCopyRuleSummary(r); }}>
+                                                    <Copy size={14} className="text-emerald-600" />
+                                                    复制规则摘要
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => { void handleCopyVisualizationLink(r, hasRulePair(r) ? 'auto' : 'network'); }}>
+                                                    <Link2 size={14} className="text-sky-600" />
+                                                    复制联动链接
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
+                                                    分享
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => { void handleCopyRuleShare(r); }}>
+                                                    <Copy size={14} className="text-violet-600" />
+                                                    复制摘要和链接
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </div>
-                            </div>
-                        )})}
+                            )
+                        })}
                         {rules.length > 5 && (
                             <div className="pt-4 text-center">
                                 <button onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} className="text-[#2383e2] text-xs font-medium hover:underline hover:underline-offset-2">查看完整底层规则列表 ↓</button>
@@ -1686,111 +1687,112 @@ export default function AnalysisResult() {
                                     const ruleKey = getRuleKey(r);
                                     const isFocused = activeFocusedRuleKey === ruleKey;
                                     return (
-                                    <motion.tr
-                                        ref={(node) => { ruleRowRefs.current[ruleKey] = node; }}
-                                        layout
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        transition={{ duration: 0.2, delay: idx * 0.02 }}
-                                        key={ruleKey}
-                                        className={cn(
-                                            "hover:bg-[#fbfbfa] transition-colors group",
-                                            isFocused ? "bg-blue-50/60 ring-1 ring-inset ring-[#2383e2]" : ""
-                                        )}
-                                    >
-                                        <td className="px-5 py-4 border-r border-[#efefee]">
-                                            <div className="flex items-center gap-4">
-                                                <span className="w-5 h-5 rounded-md flex items-center justify-center bg-[#efefee] text-[#b4b4b3] text-[10px] font-mono shrink-0 shadow-inner group-hover:bg-[#2383e2] group-hover:text-white transition-colors">
-                                                    {currentPage * rowsPerPage + idx + 1}
-                                                </span>
-                                                <div className="flex items-center text-[12px] gap-2">
-                                                    {isFocused && (
-                                                        <span className="inline-flex items-center rounded-full bg-[#eef6ff] px-2 py-0.5 text-[10px] font-black text-[#2383e2] shrink-0">
-                                                            系统定位
-                                                        </span>
-                                                    )}
-                                                    <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-100 font-medium">{r.antecedents.join(' \u00b7 ')}</span>
-                                                    <div className="flex flex-col items-center">
-                                                        <ArrowRight size={14} className="text-[#d3d3d3]" />
-                                                        <span className="text-[8px] text-[#d3d3d3] font-bold">IMPLY</span>
-                                                    </div>
-                                                    <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg border border-blue-100 font-medium">{r.consequents.join(' \u00b7 ')}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-5 py-4 text-right text-[#787774] font-mono tabular-nums">{(r.support * 100).toFixed(1)}%</td>
-                                        <td className="px-5 py-4 text-right font-bold text-[#37352f] font-mono tabular-nums">{(r.confidence * 100).toFixed(1)}%</td>
-                                        <td className="px-5 py-4 text-right font-black text-amber-600 font-mono tabular-nums">{(r.lift * 1).toFixed(2)}</td>
-                                        <td className="px-5 py-4 text-center">
-                                            {r.significant ? (
-                                                <div className="flex justify-center" title={`P Value: ${Number(r.p_value).toExponential(2)}`}>
-                                                    <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-sm gap-1.5 shadow-emerald-500/20">
-                                                        <CheckCircle2 size={10} /> 显著
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex justify-center">
-                                                    <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-400 gap-1.5 border border-gray-200">
-                                                        <Info size={10} /> 随机
-                                                    </div>
-                                                </div>
+                                        <motion.tr
+                                            ref={(node) => { ruleRowRefs.current[ruleKey] = node; }}
+                                            layout
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            transition={{ duration: 0.2, delay: idx * 0.02 }}
+                                            key={ruleKey}
+                                            className={cn(
+                                                "hover:bg-[#fbfbfa] transition-colors group",
+                                                isFocused ? "bg-blue-50/60 ring-1 ring-inset ring-[#2383e2]" : ""
                                             )}
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center justify-center">
-                                                <div className="mr-2">
-                                                    <RuleActionGuide />
-                                                </div>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe7ff] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#4f4e49] shadow-sm hover:bg-[#f8fbff] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 active:scale-[0.97]"
-                                                        >
-                                                            <BarChart3 size={12} />
-                                                            操作
-                                                            <ChevronDown size={12} />
-                                                        </button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-52">
-                                                        <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
-                                                            浏览
-                                                        </DropdownMenuItem>
-                                                        {hasRulePair(r) && (
-                                                            <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'auto'))}>
-                                                                <BarChart3 size={14} className="text-blue-600" />
-                                                                查看关系图
-                                                            </DropdownMenuItem>
+                                        >
+                                            <td className="px-5 py-4 border-r border-[#efefee]">
+                                                <div className="flex items-center gap-4">
+                                                    <span className="w-5 h-5 rounded-md flex items-center justify-center bg-[#efefee] text-[#b4b4b3] text-[10px] font-mono shrink-0 shadow-inner group-hover:bg-[#2383e2] group-hover:text-white transition-colors">
+                                                        {currentPage * rowsPerPage + idx + 1}
+                                                    </span>
+                                                    <div className="flex items-center text-[12px] gap-2">
+                                                        {isFocused && (
+                                                            <span className="inline-flex items-center rounded-full bg-[#eef6ff] px-2 py-0.5 text-[10px] font-black text-[#2383e2] shrink-0">
+                                                                系统定位
+                                                            </span>
                                                         )}
-                                                        <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'network'))}>
-                                                            <BarChart3 size={14} className="text-purple-600" />
-                                                            进入规则网络
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
-                                                            复制
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => { void handleCopyRuleSummary(r); }}>
-                                                            <Copy size={14} className="text-emerald-600" />
-                                                            复制规则摘要
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => { void handleCopyVisualizationLink(r, hasRulePair(r) ? 'auto' : 'network'); }}>
-                                                            <Link2 size={14} className="text-sky-600" />
-                                                            复制联动链接
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
-                                                            分享
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => { void handleCopyRuleShare(r); }}>
-                                                            <Copy size={14} className="text-violet-600" />
-                                                            复制摘要和链接
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        </td>
-                                    </motion.tr>
-                                )})}
+                                                        <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-100 font-medium">{r.antecedents.join(' \u00b7 ')}</span>
+                                                        <div className="flex flex-col items-center">
+                                                            <ArrowRight size={14} className="text-[#d3d3d3]" />
+                                                            <span className="text-[8px] text-[#d3d3d3] font-bold">IMPLY</span>
+                                                        </div>
+                                                        <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg border border-blue-100 font-medium">{r.consequents.join(' \u00b7 ')}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-right text-[#787774] font-mono tabular-nums">{(r.support * 100).toFixed(1)}%</td>
+                                            <td className="px-5 py-4 text-right font-bold text-[#37352f] font-mono tabular-nums">{(r.confidence * 100).toFixed(1)}%</td>
+                                            <td className="px-5 py-4 text-right font-black text-amber-600 font-mono tabular-nums">{(r.lift * 1).toFixed(2)}</td>
+                                            <td className="px-5 py-4 text-center">
+                                                {r.significant ? (
+                                                    <div className="flex justify-center" title={`P Value: ${Number(r.p_value).toExponential(2)}`}>
+                                                        <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-sm gap-1.5 shadow-emerald-500/20">
+                                                            <CheckCircle2 size={10} /> 显著
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex justify-center">
+                                                        <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-400 gap-1.5 border border-gray-200">
+                                                            <Info size={10} /> 随机
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center justify-center">
+                                                    <div className="mr-2">
+                                                        <RuleActionGuide />
+                                                    </div>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe7ff] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#4f4e49] shadow-sm hover:bg-[#f8fbff] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 active:scale-[0.97]"
+                                                            >
+                                                                <BarChart3 size={12} />
+                                                                操作
+                                                                <ChevronDown size={12} />
+                                                            </button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-52">
+                                                            <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
+                                                                浏览
+                                                            </DropdownMenuItem>
+                                                            {hasRulePair(r) && (
+                                                                <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'auto'))}>
+                                                                    <BarChart3 size={14} className="text-blue-600" />
+                                                                    查看关系图
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuItem onClick={() => navigate(buildVisualizationUrl(r, 'network'))}>
+                                                                <BarChart3 size={14} className="text-purple-600" />
+                                                                进入规则网络
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
+                                                                复制
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => { void handleCopyRuleSummary(r); }}>
+                                                                <Copy size={14} className="text-emerald-600" />
+                                                                复制规则摘要
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => { void handleCopyVisualizationLink(r, hasRulePair(r) ? 'auto' : 'network'); }}>
+                                                                <Link2 size={14} className="text-sky-600" />
+                                                                复制联动链接
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem disabled className="text-[10px] font-black uppercase tracking-widest text-[#9b9a97] opacity-100">
+                                                                分享
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => { void handleCopyRuleShare(r); }}>
+                                                                <Copy size={14} className="text-violet-600" />
+                                                                复制摘要和链接
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </td>
+                                        </motion.tr>
+                                    )
+                                })}
                             </AnimatePresence>
                             {paginatedRules.length === 0 && (
                                 <tr>
