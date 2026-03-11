@@ -104,7 +104,8 @@
 - Flask
 - Pandas / NumPy / SciPy / scikit-learn
 - Plotly / Jinja2 / Markdown
-- Gunicorn（生产推荐）
+- Gunicorn（Linux / Render 生产推荐）
+- Waitress（Windows 部署推荐）
 
 ### 前端
 
@@ -138,6 +139,7 @@ Flask API Server
 .
 ├── app.py                  # Flask 应用入口（本地运行）
 ├── wsgi.py                 # Gunicorn / Render 推荐入口
+├── serve.py                # 跨平台生产启动入口（Windows / Linux）
 ├── requirements.txt        # 后端依赖
 ├── config.json             # 系统配置
 ├── Dockerfile              # 当前可用的容器部署入口
@@ -203,6 +205,12 @@ python app.py
 - `http://127.0.0.1:8001`
 
 > 注意：当前项目真实默认端口是 **8001**，不是旧文档中的 5000。
+
+如需用更接近生产的方式在本机启动（尤其是 Windows）：
+
+```bash
+python serve.py
+```
 
 ## 3. 启动前端
 
@@ -301,6 +309,19 @@ gunicorn wsgi:app --workers 2 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
 ```
 
 > 当前仓库已经补齐了 `wsgi.py`，可直接作为 Gunicorn 入口。
+
+### 方案 A-补充：Windows 服务器 / 本机生产模式启动
+
+如果你的后台是部署在 **Windows** 环境，不要使用 `gunicorn`，推荐直接执行：
+
+```bash
+python serve.py
+```
+
+`serve.py` 会自动：
+
+- 在 Windows 上使用 `waitress`
+- 在 Linux / Render 上提示继续使用 `gunicorn wsgi:app`
 
 ### 方案 B：Render Docker 部署
 
@@ -537,7 +558,10 @@ uvicorn main:app
 当前项目实际后端入口是：
 
 - 本地：`python app.py`
-- 生产：`gunicorn wsgi:app`
+- Linux / Render 生产：`gunicorn wsgi:app`
+- Windows 生产：`python serve.py`
+
+> `gunicorn` 主要面向类 Unix 环境，Windows 部署不要直接用它。
 
 ### 2. 当前默认本地端口是 8001
 
@@ -599,6 +623,16 @@ uvicorn main:app
 - Vercel 是否完成了新的 Production Deployment
 - 浏览器是否仍在使用旧缓存
 - `VITE_API_URL` 是否确实更新
+
+### Q5：Windows 上执行 `gunicorn wsgi:app` 启动失败
+
+这是部署方式不匹配，不是当前 Flask 项目入口写错。
+
+处理方式：
+
+- 先执行 `pip install -r requirements.txt`
+- Windows 上改用 `python serve.py`
+- 如果部署在 Render / Linux，继续使用 `gunicorn wsgi:app --bind 0.0.0.0:$PORT`
 
 ---
 
